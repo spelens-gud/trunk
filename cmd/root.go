@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spelens-gud/trunk/internal"
+	"github.com/spelens-gud/trunk/internal/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -33,8 +33,11 @@ to quickly create a Cobra application.`,
 		}
 
 		if versionFlag {
-			internal.GetVersionInfo()
+			version.PrintVersion()
+
+			return nil
 		}
+
 		return cmd.Help()
 	},
 }
