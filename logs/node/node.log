@@ -1,0 +1,4 @@
+2025-11-07 19:02:37.993	[34mINFO[0m	cmd/node.go:25	Node 服务启动	{"service": "node", "env": "dev", "service": "node", "environment": "dev"}
+2025-11-07 19:02:37.993	[34mINFO[0m	cmd/node.go:31	Node 服务运行中...	{"service": "node", "env": "dev"}
+2025-11-07 19:05:16.364	[34mINFO[0m	cmd/node.go:39	Node 服务启动	{"service": "node", "env": "dev", "service": "node", "environment": "dev"}
+2025-11-07 19:05:16.365	[34mINFO[0m	cmd/node.go:45	Node 服务运行中...	{"service": "node", "env": "dev"}

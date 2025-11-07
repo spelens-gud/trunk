@@ -1,0 +1,14 @@
+# Gate 服务配置
+service_name: "gate"
+environment: "dev"
+log_level: "info"
+console: true
+file: true
+file_path: "./logs/gate"
+file_name: "gate.log"
+max_size: 100
+max_age: 30
+max_backups: 10
+compress: true
+enable_caller: true
+enable_stacktrace: true

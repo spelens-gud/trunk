@@ -1,19 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spelens-gud/trunk/internal/version"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-)
-
-var (
-	// 全局配置文件路径
-	cfgFile string
-	// 全局日志级别
-	logLevel string
 )
 
 var rootCmd = &cobra.Command{
@@ -50,37 +41,6 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
-	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "配置文件路径 (默认为 $HOME/.trunk/trunk.yaml)")
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "日志级别 (debug, info, warn, error)")
-
 	// Cobra 也支持本地标志，只在直接调用此操作时运行
 	rootCmd.Flags().BoolP("version", "v", false, "显示版本信息")
-}
-
-func initConfig() {
-	if cfgFile != "" {
-		// 使用命令行指定的配置文件
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// 查找主目录
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("trunk")
-	}
-
-	// 读取环境变量
-	viper.AutomaticEnv()
-
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
-	}
 }

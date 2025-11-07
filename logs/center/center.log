@@ -1,0 +1,2 @@
+2025-11-07 19:16:36.958	[34mINFO[0m	cmd/center.go:37	Center 服务启动	{"service": "center", "env": "dev", "service": "center", "environment": "dev"}
+2025-11-07 19:16:36.958	[34mINFO[0m	cmd/center.go:43	Center 服务运行中...	{"service": "center", "env": "dev"}
