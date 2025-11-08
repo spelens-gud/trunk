@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	// 配置文件路径
+	// centerConfigFile 配置文件路径
 	centerConfigFile string
+	// centerViper Center 服务专用的 viper 实例
+	centerViper *viper.Viper
 )
 
 var centerCmd = &cobra.Command{
@@ -19,8 +21,14 @@ var centerCmd = &cobra.Command{
 	Short: "启动 Center 服务",
 	Long:  `Center 服务负责中心服务器的管理和协调`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// 从 viper 加载日志配置
-		logConfig := logger.LoadConfigFromViper()
+		// 初始化 Center 配置
+		if err := initCenterConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "加载配置文件失败: %v\n", err)
+			os.Exit(1)
+		}
+
+		// 从 Center 专用的 viper 实例加载日志配置
+		logConfig := logger.LoadConfigFromViper(centerViper)
 
 		// 创建日志实例
 		log, err := logger.NewLogger(logConfig)
@@ -32,40 +40,47 @@ var centerCmd = &cobra.Command{
 		log.Infof("服务的配置文件：%v", logConfig)
 
 		// 这里添加你的服务逻辑
-		log.Info("服务运行中...")
+		log.Info("Center 服务运行中...")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(centerCmd)
-	cobra.OnInitialize(initCenterConfig)
 
-	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&centerConfigFile, "center_config", "", "配置文件路径 (默认为 $HOME/.trunk/center.yaml)")
+	// 定义 Center 服务的配置文件标志
+	centerCmd.Flags().StringVar(&centerConfigFile, "config", "", "配置文件路径 (默认为 ./config/center.yaml)")
 }
 
-// initCenterConfig 初始化配置
-func initCenterConfig() {
+// initCenterConfig 初始化 Center 配置
+func initCenterConfig() error {
+	// 创建 Center 服务专用的 viper 实例
+	centerViper = viper.New()
+
 	if centerConfigFile != "" {
 		// 使用命令行指定的配置文件
-		viper.SetConfigFile(centerConfigFile)
+		centerViper.SetConfigFile(centerConfigFile)
 	} else {
 		// 查找主目录
 		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
 
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("center")
+		centerViper.AddConfigPath(home)
+		centerViper.AddConfigPath(".")
+		centerViper.AddConfigPath("./config")
+		centerViper.SetConfigType("yaml")
+		centerViper.SetConfigName("center")
 	}
 
 	// 读取环境变量
-	viper.AutomaticEnv()
+	centerViper.AutomaticEnv()
 
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
+	// 读取配置文件
+	if err := centerViper.ReadInConfig(); err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", centerViper.ConfigFileUsed())
+	return nil
 }

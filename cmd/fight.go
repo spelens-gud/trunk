@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	// 配置文件路径
+	// fightConfigFile 配置文件路径
 	fightConfigFile string
+	// fightViper Fight 服务专用的 viper 实例
+	fightViper *viper.Viper
 )
 
 var fightCmd = &cobra.Command{
@@ -19,8 +21,14 @@ var fightCmd = &cobra.Command{
 	Short: "启动 Fight 服务",
 	Long:  `Fight 服务负责战斗逻辑的处理`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// 从 viper 加载日志配置
-		logConfig := logger.LoadConfigFromViper()
+		// 初始化 Fight 配置
+		if err := initFightConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "加载配置文件失败: %v\n", err)
+			os.Exit(1)
+		}
+
+		// 从 Fight 专用的 viper 实例加载日志配置
+		logConfig := logger.LoadConfigFromViper(fightViper)
 
 		// 创建日志实例
 		log, err := logger.NewLogger(logConfig)
@@ -39,34 +47,41 @@ var fightCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(fightCmd)
-	cobra.OnInitialize(initFightConfig)
 
-	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&fightConfigFile, "fight_config", "", "配置文件路径 (默认为 $HOME/.trunk/fight.yaml)")
+	// 定义 Fight 服务的配置文件标志
+	fightCmd.Flags().StringVar(&fightConfigFile, "config", "", "配置文件路径 (默认为 ./config/fight.yaml)")
 }
 
-// initFightConfig 初始化配置
-func initFightConfig() {
+// initFightConfig 初始化 Fight 配置
+func initFightConfig() error {
+	// 创建 Fight 服务专用的 viper 实例
+	fightViper = viper.New()
+
 	if fightConfigFile != "" {
 		// 使用命令行指定的配置文件
-		viper.SetConfigFile(fightConfigFile)
+		fightViper.SetConfigFile(fightConfigFile)
 	} else {
 		// 查找主目录
 		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
 
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("fight")
+		fightViper.AddConfigPath(home)
+		fightViper.AddConfigPath(".")
+		fightViper.AddConfigPath("./config")
+		fightViper.SetConfigType("yaml")
+		fightViper.SetConfigName("fight")
 	}
 
 	// 读取环境变量
-	viper.AutomaticEnv()
+	fightViper.AutomaticEnv()
 
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
+	// 读取配置文件
+	if err := fightViper.ReadInConfig(); err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", fightViper.ConfigFileUsed())
+	return nil
 }

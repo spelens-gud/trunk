@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	// 配置文件路径
+	// nodeConfigFile 配置文件路径
 	nodeConfigFile string
+	// nodeViper Node 服务专用的 viper 实例
+	nodeViper *viper.Viper
 )
 
 var nodeCmd = &cobra.Command{
@@ -19,8 +21,14 @@ var nodeCmd = &cobra.Command{
 	Short: "启动 Node 服务",
 	Long:  `Node 服务负责节点管理和分布式协调`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// 从 viper 加载日志配置
-		logConfig := logger.LoadConfigFromViper()
+		// 初始化 Node 配置
+		if err := initNodeConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "加载配置文件失败: %v\n", err)
+			os.Exit(1)
+		}
+
+		// 从 Node 专用的 viper 实例加载日志配置
+		logConfig := logger.LoadConfigFromViper(nodeViper)
 
 		// 创建日志实例
 		log, err := logger.NewLogger(logConfig)
@@ -38,35 +46,42 @@ var nodeCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(fightCmd)
-	cobra.OnInitialize(initNodeConfig)
+	rootCmd.AddCommand(nodeCmd)
 
-	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&fightConfigFile, "node_config", "", "配置文件路径 (默认为 $HOME/.trunk/center.yaml)")
+	// 定义 Node 服务的配置文件标志
+	nodeCmd.Flags().StringVar(&nodeConfigFile, "config", "", "配置文件路径 (默认为 ./config/node.yaml)")
 }
 
-// initNodeConfig 初始化配置
-func initNodeConfig() {
+// initNodeConfig 初始化 Node 配置
+func initNodeConfig() error {
+	// 创建 Node 服务专用的 viper 实例
+	nodeViper = viper.New()
+
 	if nodeConfigFile != "" {
 		// 使用命令行指定的配置文件
-		viper.SetConfigFile(nodeConfigFile)
+		nodeViper.SetConfigFile(nodeConfigFile)
 	} else {
 		// 查找主目录
 		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
 
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("node")
+		nodeViper.AddConfigPath(home)
+		nodeViper.AddConfigPath(".")
+		nodeViper.AddConfigPath("./config")
+		nodeViper.SetConfigType("yaml")
+		nodeViper.SetConfigName("node")
 	}
 
 	// 读取环境变量
-	viper.AutomaticEnv()
+	nodeViper.AutomaticEnv()
 
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
+	// 读取配置文件
+	if err := nodeViper.ReadInConfig(); err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", nodeViper.ConfigFileUsed())
+	return nil
 }

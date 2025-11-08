@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	// 配置文件路径
+	// gateConfigFile 配置文件路径
 	gateConfigFile string
+	// gateViper Gate 服务专用的 viper 实例
+	gateViper *viper.Viper
 )
 
 var gateCmd = &cobra.Command{
@@ -19,8 +21,14 @@ var gateCmd = &cobra.Command{
 	Short: "启动 Gate 服务",
 	Long:  `Gate 服务负责网关和连接管理`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// 从 viper 加载日志配置
-		logConfig := logger.LoadConfigFromViper()
+		// 初始化 Gate 配置
+		if err := initGateConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "加载配置文件失败: %v\n", err)
+			os.Exit(1)
+		}
+
+		// 从 Gate 专用的 viper 实例加载日志配置
+		logConfig := logger.LoadConfigFromViper(gateViper)
 
 		// 创建日志实例
 		log, err := logger.NewLogger(logConfig)
@@ -38,35 +46,42 @@ var gateCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(fightCmd)
-	cobra.OnInitialize(initGateConfig)
+	rootCmd.AddCommand(gateCmd)
 
-	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&fightConfigFile, "gate_config", "", "配置文件路径 (默认为 $HOME/.trunk/center.yaml)")
+	// 定义 Gate 服务的配置文件标志
+	gateCmd.Flags().StringVar(&gateConfigFile, "config", "", "配置文件路径 (默认为 ./config/gate.yaml)")
 }
 
-// initGateConfig 初始化配置
-func initGateConfig() {
+// initGateConfig 初始化 Gate 配置
+func initGateConfig() error {
+	// 创建 Gate 服务专用的 viper 实例
+	gateViper = viper.New()
+
 	if gateConfigFile != "" {
 		// 使用命令行指定的配置文件
-		viper.SetConfigFile(gateConfigFile)
+		gateViper.SetConfigFile(gateConfigFile)
 	} else {
 		// 查找主目录
 		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
 
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("gate")
+		gateViper.AddConfigPath(home)
+		gateViper.AddConfigPath(".")
+		gateViper.AddConfigPath("./config")
+		gateViper.SetConfigType("yaml")
+		gateViper.SetConfigName("gate")
 	}
 
 	// 读取环境变量
-	viper.AutomaticEnv()
+	gateViper.AutomaticEnv()
 
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
+	// 读取配置文件
+	if err := gateViper.ReadInConfig(); err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", gateViper.ConfigFileUsed())
+	return nil
 }

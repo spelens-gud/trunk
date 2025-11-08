@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -110,7 +111,7 @@ func NewLogger(config *Config) (ILogger, error) {
 	}
 
 	// 创建 logger，使用 Named 设置服务名称
-	zapLogger := zap.New(core, options...).Named(config.ServiceName + ":" + config.Environment)
+	zapLogger := zap.New(core, options...).Named(strings.ToUpper(config.ServiceName) + ":" + strings.ToUpper(config.Environment))
 
 	return &Logger{
 		logger: zapLogger,

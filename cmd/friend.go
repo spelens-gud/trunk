@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	// 配置文件路径
+	// friendConfigFile 配置文件路径
 	friendConfigFile string
+	// friendViper Friend 服务专用的 viper 实例
+	friendViper *viper.Viper
 )
 
 var friendCmd = &cobra.Command{
@@ -19,8 +21,14 @@ var friendCmd = &cobra.Command{
 	Short: "启动 Friend 服务",
 	Long:  `Friend 服务负责好友系统的管理`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// 从 viper 加载日志配置
-		logConfig := logger.LoadConfigFromViper()
+		// 初始化 Friend 配置
+		if err := initFriendConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "加载配置文件失败: %v\n", err)
+			os.Exit(1)
+		}
+
+		// 从 Friend 专用的 viper 实例加载日志配置
+		logConfig := logger.LoadConfigFromViper(friendViper)
 
 		// 创建日志实例
 		log, err := logger.NewLogger(logConfig)
@@ -39,34 +47,41 @@ var friendCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(friendCmd)
-	cobra.OnInitialize(initFriendConfig)
 
-	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&friendConfigFile, "friend_config", "", "配置文件路径 (默认为 $HOME/.trunk/center.yaml)")
+	// 定义 Friend 服务的配置文件标志
+	friendCmd.Flags().StringVar(&friendConfigFile, "config", "", "配置文件路径 (默认为 ./config/friend.yaml)")
 }
 
-// initFriendConfig 初始化配置
-func initFriendConfig() {
+// initFriendConfig 初始化 Friend 配置
+func initFriendConfig() error {
+	// 创建 Friend 服务专用的 viper 实例
+	friendViper = viper.New()
+
 	if friendConfigFile != "" {
 		// 使用命令行指定的配置文件
-		viper.SetConfigFile(friendConfigFile)
+		friendViper.SetConfigFile(friendConfigFile)
 	} else {
 		// 查找主目录
 		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		if err != nil {
+			return fmt.Errorf("获取用户主目录失败: %w", err)
+		}
 
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("./config")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("friend")
+		friendViper.AddConfigPath(home)
+		friendViper.AddConfigPath(".")
+		friendViper.AddConfigPath("./config")
+		friendViper.SetConfigType("yaml")
+		friendViper.SetConfigName("friend")
 	}
 
 	// 读取环境变量
-	viper.AutomaticEnv()
+	friendViper.AutomaticEnv()
 
-	// 如果找到配置文件，则读取它
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
+	// 读取配置文件
+	if err := friendViper.ReadInConfig(); err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
+
+	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", friendViper.ConfigFileUsed())
+	return nil
 }
