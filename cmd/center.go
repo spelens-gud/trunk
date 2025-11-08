@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/trunk/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -22,19 +23,13 @@ var centerCmd = &cobra.Command{
 	Long:  `Center 服务负责中心服务器的管理和协调`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Center 配置
-		if err := initCenterConfig(); err != nil {
-			fmt.Fprintf(os.Stderr, "加载配置文件失败: %v\n", err)
-			os.Exit(1)
-		}
+		utils.MustNoError(initCenterConfig(), "加载配置文件失败")
 
 		// 从 Center 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(centerViper)
 
 		// 创建日志实例
-		log, err := logger.NewLogger(logConfig)
-		if err != nil {
-			panic(err)
-		}
+		log := utils.MustValue(logger.NewLogger(logConfig))
 		defer log.Sync()
 
 		log.Infof("服务的配置文件：%v", logConfig)
@@ -61,10 +56,7 @@ func initCenterConfig() error {
 		centerViper.SetConfigFile(centerConfigFile)
 	} else {
 		// 查找主目录
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("获取用户主目录失败: %w", err)
-		}
+		home := utils.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
 
 		centerViper.AddConfigPath(home)
 		centerViper.AddConfigPath(".")
