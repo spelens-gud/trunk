@@ -7,23 +7,17 @@ import (
 	"github.com/spelens-gud/trunk/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
+)
+
+var (
+	// 配置文件路径
+	fightConfigFile string
 )
 
 var fightCmd = &cobra.Command{
 	Use:   "fight",
 	Short: "启动 Fight 服务",
 	Long:  `Fight 服务负责战斗逻辑的处理`,
-	PreRun: func(cmd *cobra.Command, args []string) {
-		// 如果没有指定配置文件，使用服务默认配置
-		if cfgFile == "" {
-			viper.SetConfigFile("./config/fight.yaml")
-			if err := viper.ReadInConfig(); err != nil {
-				fmt.Fprintf(os.Stderr, "读取配置文件失败: %v\n", err)
-				os.Exit(1)
-			}
-		}
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		// 从 viper 加载日志配置
 		logConfig := logger.LoadConfigFromViper()
@@ -36,10 +30,7 @@ var fightCmd = &cobra.Command{
 		defer log.Sync()
 
 		// 记录服务启动
-		log.Info("Fight 服务启动",
-			zap.String("service", logConfig.ServiceName),
-			zap.String("environment", logConfig.Environment),
-		)
+		log.Infof("服务的配置文件：%v", logConfig)
 
 		// 这里添加你的服务逻辑
 		log.Info("Fight 服务运行中...")
@@ -48,14 +39,34 @@ var fightCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(fightCmd)
+	cobra.OnInitialize(initFightConfig)
 
-	// Here you will define your flags and configuration settings.
+	// 全局标志，在这里定义标志并绑定到配置
+	rootCmd.PersistentFlags().StringVar(&fightConfigFile, "fight_config", "", "配置文件路径 (默认为 $HOME/.trunk/fight.yaml)")
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// fightCmd.PersistentFlags().String("foo", "", "A help for foo")
+// initFightConfig 初始化配置
+func initFightConfig() {
+	if fightConfigFile != "" {
+		// 使用命令行指定的配置文件
+		viper.SetConfigFile(fightConfigFile)
+	} else {
+		// 查找主目录
+		home, err := os.UserHomeDir()
+		cobra.CheckErr(err)
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// fightCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+		viper.AddConfigPath(home)
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("./config")
+		viper.SetConfigType("yaml")
+		viper.SetConfigName("fight")
+	}
+
+	// 读取环境变量
+	viper.AutomaticEnv()
+
+	// 如果找到配置文件，则读取它
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Fprintln(os.Stderr, "使用配置文件:", viper.ConfigFileUsed())
+	}
 }

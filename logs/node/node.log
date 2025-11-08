@@ -2,3 +2,13 @@
 2025-11-07 19:02:37.993	[34mINFO[0m	cmd/node.go:31	Node 服务运行中...	{"service": "node", "env": "dev"}
 2025-11-07 19:05:16.364	[34mINFO[0m	cmd/node.go:39	Node 服务启动	{"service": "node", "env": "dev", "service": "node", "environment": "dev"}
 2025-11-07 19:05:16.365	[34mINFO[0m	cmd/node.go:45	Node 服务运行中...	{"service": "node", "env": "dev"}
+2025-11-08 15:49:24.544	[34mINFO[0m	cmd/node.go:39	Node 服务启动	{"service": "node", "env": "dev", "service": "node", "environment": "dev"}
+2025-11-08 15:49:24.545	[34mINFO[0m	cmd/node.go:45	Node 服务运行中...	{"service": "node", "env": "dev"}
+2025-11-08 15:49:55.058	[34mINFO[0m	cmd/node.go:39	Node 服务启动	{"service": "node", "env": "dev", "service": "node", "environment": "dev"}
+2025-11-08 15:49:55.060	[34mINFO[0m	cmd/node.go:45	Node 服务运行中...	{"service": "node", "env": "dev"}
+2025-11-08 16:18:35	[34mINFO[0m	【node】	cmd/node.go:39	Node 服务启动	{"service": "node", "environment": "dev"}
+2025-11-08 16:18:35	[34mINFO[0m	【node】	cmd/node.go:45	Node 服务运行中...
+2025-11-08 17:29:50	[34mINFO[0m	[node:dev]	cmd/fight.go:33	服务的配置文件：&{node dev info true true ./logs/node node.log 100 30 10 true true true}
+2025-11-08 17:29:50	[34mINFO[0m	[node:dev]	cmd/fight.go:36	Fight 服务运行中...
+2025-11-08 17:30:06	[34mINFO[0m	[node:dev]	cmd/center.go:32	服务的配置文件：&{node dev info true true ./logs/node node.log 100 30 10 true true true}
+2025-11-08 17:30:06	[34mINFO[0m	[node:dev]	cmd/center.go:35	服务运行中...

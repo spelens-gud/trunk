@@ -7,14 +7,11 @@ import (
 	"github.com/spelens-gud/trunk/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 var (
 	// 配置文件路径
-	cfgFile string
-	// 全局日志级别
-	logLevel string
+	centerConfigFile string
 )
 
 var centerCmd = &cobra.Command{
@@ -22,7 +19,6 @@ var centerCmd = &cobra.Command{
 	Short: "启动 Center 服务",
 	Long:  `Center 服务负责中心服务器的管理和协调`,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		// 从 viper 加载日志配置
 		logConfig := logger.LoadConfigFromViper()
 
@@ -33,33 +29,26 @@ var centerCmd = &cobra.Command{
 		}
 		defer log.Sync()
 
-		// 记录服务启动
-		log.Info("Center 服务启动",
-			zap.String("service", logConfig.ServiceName),
-			zap.String("environment", logConfig.Environment),
-		)
+		log.Infof("服务的配置文件：%v", logConfig)
 
 		// 这里添加你的服务逻辑
-		log.Info("Center 服务运行中...")
+		log.Info("服务运行中...")
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(centerCmd)
-
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initCenterConfig)
 
 	// 全局标志，在这里定义标志并绑定到配置
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "配置文件路径 (默认为 $HOME/.trunk/center.yaml)")
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "日志级别 (debug, info, warn, error)")
-
+	rootCmd.PersistentFlags().StringVar(&centerConfigFile, "center_config", "", "配置文件路径 (默认为 $HOME/.trunk/center.yaml)")
 }
 
-// initConfig 初始化配置
-func initConfig() {
-	if cfgFile != "" {
+// initCenterConfig 初始化配置
+func initCenterConfig() {
+	if centerConfigFile != "" {
 		// 使用命令行指定的配置文件
-		viper.SetConfigFile(cfgFile)
+		viper.SetConfigFile(centerConfigFile)
 	} else {
 		// 查找主目录
 		home, err := os.UserHomeDir()

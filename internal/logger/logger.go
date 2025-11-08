@@ -109,14 +109,8 @@ func NewLogger(config *Config) (ILogger, error) {
 		options = append(options, zap.AddStacktrace(zapcore.ErrorLevel))
 	}
 
-	// 添加服务名称和环境字段
-	options = append(options, zap.Fields(
-		zap.String("service", config.ServiceName),
-		zap.String("env", config.Environment),
-	))
-
-	// 创建 logger
-	zapLogger := zap.New(core, options...)
+	// 创建 logger，使用 Named 设置服务名称
+	zapLogger := zap.New(core, options...).Named(config.ServiceName + ":" + config.Environment)
 
 	return &Logger{
 		logger: zapLogger,

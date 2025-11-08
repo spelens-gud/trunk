@@ -1,2 +1,30 @@
 2025-11-07 19:16:36.958	[34mINFO[0m	cmd/center.go:37	Center 服务启动	{"service": "center", "env": "dev", "service": "center", "environment": "dev"}
 2025-11-07 19:16:36.958	[34mINFO[0m	cmd/center.go:43	Center 服务运行中...	{"service": "center", "env": "dev"}
+2025-11-08 02:37:35.161	[34mINFO[0m	cmd/center.go:37	Center 服务启动	{"service": "center", "env": "dev", "service": "center", "environment": "dev"}
+2025-11-08 02:37:35.161	[34mINFO[0m	cmd/center.go:43	Center 服务运行中...	{"service": "center", "env": "dev"}
+2025-11-08 15:48:59.254	[34mINFO[0m	cmd/center.go:46	Center 服务启动	{"service": "center", "env": "dev", "service": "center", "environment": "dev"}
+2025-11-08 15:48:59.255	[34mINFO[0m	cmd/center.go:52	Center 服务运行中...	{"service": "center", "env": "dev"}
+2025-11-08 15:49:58.266	[34mINFO[0m	cmd/center.go:36	Center 服务启动	{"service": "center", "env": "dev", "service": "center", "environment": "dev"}
+2025-11-08 15:49:58.266	[34mINFO[0m	cmd/center.go:42	Center 服务运行中...	{"service": "center", "env": "dev"}
+2025-11-08 15:55:55.125	[34mINFO[0m	cmd/center.go:36	center 服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"service": "center", "env": "dev", "prefix": "center"}
+2025-11-08 15:55:55.125	[34mINFO[0m	cmd/center.go:39	Center 服务运行中...	{"service": "center", "env": "dev", "prefix": "center"}
+2025-11-08 15:56:28.054	[34mINFO[0m	cmd/center.go:36	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"service": "center", "env": "dev", "prefix": "center"}
+2025-11-08 15:56:28.055	[34mINFO[0m	cmd/center.go:39	服务运行中...	{"service": "center", "env": "dev", "prefix": "center"}
+2025-11-08 16:07:23.055	[34mINFO[0m	cmd/center.go:36	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"service": "center", "env": "dev", "prefix": "center"}
+2025-11-08 16:07:23.056	[34mINFO[0m	cmd/center.go:39	服务运行中...	{"service": "center", "env": "dev", "prefix": "center"}
+2025-11-08 16:12:28.575	[34mINFO[0m	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"service": "center", "env": "dev"}
+2025-11-08 16:12:28.576	[34mINFO[0m	cmd/center.go:37	服务运行中...	{"service": "center", "env": "dev"}
+2025-11-08 16:13:12.423	[34mINFO[0m	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"service": "[center]", "env": "[dev]"}
+2025-11-08 16:13:12.424	[34mINFO[0m	cmd/center.go:37	服务运行中...	{"service": "[center]", "env": "[dev]"}
+2025-11-08 16:15:46.903	[34mINFO[0m	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"service": "[center]", "env": "[dev]", "prefix": "[111]"}
+2025-11-08 16:15:46.904	[34mINFO[0m	cmd/center.go:37	服务运行中...	{"service": "[center]", "env": "[dev]", "prefix": "[111]"}
+2025-11-08 16:16:15.399	[34mINFO[0m	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}	{"prefix": "[111]"}
+2025-11-08 16:16:15.400	[34mINFO[0m	cmd/center.go:37	服务运行中...	{"prefix": "[111]"}
+2025-11-08 16:18:23	[34mINFO[0m	【center】	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}
+2025-11-08 16:18:23	[34mINFO[0m	【center】	cmd/center.go:37	服务运行中...
+2025-11-08 16:19:14	[34mINFO[0m	[center]	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}
+2025-11-08 16:19:14	[34mINFO[0m	[center]	cmd/center.go:37	服务运行中...
+2025-11-08 16:20:50	[34mINFO[0m	[center:dev]	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}
+2025-11-08 16:20:50	[34mINFO[0m	[center:dev]	cmd/center.go:37	服务运行中...
+2025-11-08 17:12:44	[34mINFO[0m	[center:dev]	cmd/center.go:34	服务的配置文件：&{center dev info true true ./logs/center center.log 100 30 10 true true true}
+2025-11-08 17:12:44	[34mINFO[0m	[center:dev]	cmd/center.go:37	服务运行中...

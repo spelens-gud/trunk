@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -11,31 +12,31 @@ import (
 // Config 日志配置
 type Config struct {
 	// ServiceName 服务名称(用作日志前缀)
-	ServiceName string
+	ServiceName string `yaml:"service_name"`
 	// Environment 环境：dev, test, prod
-	Environment string
+	Environment string `yaml:"environment"`
 	// Level 日志级别：debug, info, warn, error
-	Level string
+	Level string `yaml:"level"`
 	// Console 是否输出到控制台
-	Console bool
+	Console bool `yaml:"console"`
 	// File 是否输出到文件
-	File bool
+	File bool `yaml:"file"`
 	// FilePath 文件路径
-	FilePath string
+	FilePath string `yaml:"file_path"`
 	// FileName 文件名
-	FileName string
+	FileName string `yaml:"file_name"`
 	// MaxSize 单个文件最大大小（MB）
-	MaxSize int
+	MaxSize int `yaml:"max_size"`
 	// MaxAge 保留旧文件的最大天数
-	MaxAge int
+	MaxAge int `yaml:"max_age"`
 	// MaxBackups 保留旧文件的最大个数
-	MaxBackups int
+	MaxBackups int `yaml:"max_backups"`
 	// Compress 是否压缩旧文件
-	Compress bool
+	Compress bool `yaml:"compress"`
 	// EnableCaller 是否启用调用者信息
-	EnableCaller bool
+	EnableCaller bool `yaml:"enable_caller"`
 	// EnableStacktrace 是否启用堆栈跟踪
-	EnableStacktrace bool
+	EnableStacktrace bool `yaml:"enable_stacktrace"`
 }
 
 // DefaultConfig 返回默认配置
@@ -80,14 +81,14 @@ func parseLevel(level string) zapcore.Level {
 // DefaultEncoderConfig 返回默认的编码器配置
 func DefaultEncoderConfig() zapcore.EncoderConfig {
 	return zapcore.EncoderConfig{
-		TimeKey:     "time",
-		LevelKey:    "level",
-		NameKey:     "logger",
-		CallerKey:   "caller",
+		TimeKey:     "T",
+		LevelKey:    "L",
+		NameKey:     "N",
+		CallerKey:   "C",
 		FunctionKey: zapcore.OmitKey,
-		MessageKey:  "msg",
+		MessageKey:  "M",
 		// StacktraceKey: 堆栈跟踪
-		StacktraceKey: "stacktrace",
+		StacktraceKey: "S",
 		// LineEnding: 换行符为\n
 		LineEnding: zapcore.DefaultLineEnding,
 		// EncodeLevel: 自定义日志级别, 大写编码
@@ -98,12 +99,38 @@ func DefaultEncoderConfig() zapcore.EncoderConfig {
 		EncodeDuration: zapcore.SecondsDurationEncoder,
 		// EncodeCaller: 默认为 zapcore.ShortCallerEncoder, 只保留最后一个文件调用
 		EncodeCaller: zapcore.ShortCallerEncoder,
+		// EncodeName: 自定义服务名称编码
+		EncodeName: customNameEncoder,
+	}
+}
+
+// LoadConfigFromViper 从 viper 加载日志配置
+func LoadConfigFromViper() *Config {
+	return &Config{
+		ServiceName:      viper.GetString("logger.service_name"),
+		Environment:      viper.GetString("logger.environment"),
+		Level:            viper.GetString("logger.log_level"),
+		Console:          viper.GetBool("logger.console"),
+		File:             viper.GetBool("logger.file"),
+		FilePath:         viper.GetString("logger.file_path"),
+		FileName:         viper.GetString("logger.file_name"),
+		MaxSize:          viper.GetInt("logger.max_size"),
+		MaxAge:           viper.GetInt("logger.max_age"),
+		MaxBackups:       viper.GetInt("logger.max_backups"),
+		Compress:         viper.GetBool("logger.compress"),
+		EnableCaller:     viper.GetBool("logger.enable_caller"),
+		EnableStacktrace: viper.GetBool("logger.enable_stacktrace"),
 	}
 }
 
 // customTimeEncoder 自定义时间格式
 func customTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-	enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
+	enc.AppendString(t.Format("2006-01-02 15:04:05"))
+}
+
+// customNameEncoder 自定义服务名称编码
+func customNameEncoder(name string, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString("[" + name + "]")
 }
 
 func returnLoggerConfig(config *Config, fileName string) *lumberjack.Logger {
