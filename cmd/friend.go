@@ -1,8 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/spelens-gud/trunk/internal/logger"
 	"github.com/spelens-gud/trunk/internal/utils"
@@ -32,11 +37,36 @@ var friendCmd = &cobra.Command{
 		log := utils.MustValue(logger.NewLogger(logConfig))
 		defer log.Sync()
 
-		// 记录服务启动
-		log.Infof("服务的配置文件：%v", logConfig)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		// 这里添加你的服务逻辑
-		log.Info("Friend 服务运行中...")
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+		// 启动服务
+		go func() {
+			// TODO
+			// 1. 初始化服务
+			// 2. 启动服务
+		}()
+
+		select {
+		case sig := <-sigChan:
+			log.Infof("收到信号 %v，正在关闭客户端...", sig)
+			cancel()
+		case <-ctx.Done():
+			log.Infof("客户端上下文已取消")
+		}
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer shutdownCancel()
+
+		if err := gracefulShutdownFriendServer(shutdownCtx); err != nil {
+			log.Infof("客户端关闭失败: %v", err)
+		} else {
+			log.Infof("客户端已成功关闭")
+		}
+
 	},
 }
 
@@ -76,4 +106,19 @@ func initFriendConfig() error {
 
 	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", friendViper.ConfigFileUsed())
 	return nil
+}
+
+// gracefulShutdownCenterServer 优雅关闭中心服
+func gracefulShutdownFriendServer(ctx context.Context) error {
+	log.Println("开始优雅关闭客户端...")
+
+	// TODO: 实现客户端关闭资源释放
+
+	select {
+	case <-time.After(1 * time.Second):
+		log.Println("客户端关闭完成")
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
