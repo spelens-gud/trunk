@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spelens-gud/trunk/internal/assert"
 	"github.com/spelens-gud/trunk/internal/logger"
-	"github.com/spelens-gud/trunk/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,13 +28,13 @@ var gateCmd = &cobra.Command{
 	Long:  `Gate 服务负责网关和连接管理`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Gate 配置
-		utils.MustNoError(initGateConfig(), "加载配置文件失败")
+		assert.MustNoError(initGateConfig(), "加载配置文件失败")
 
 		// 从 Gate 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(gateViper)
 
 		// 创建日志实例
-		log := utils.MustValue(logger.NewLogger(logConfig))
+		log := assert.MustValue(logger.NewLogger(logConfig))
 		defer log.Sync()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -87,7 +87,7 @@ func initGateConfig() error {
 		gateViper.SetConfigFile(gateConfigFile)
 	} else {
 		// 查找主目录
-		home := utils.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
+		home := assert.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
 
 		gateViper.AddConfigPath(home)
 		gateViper.AddConfigPath(".")

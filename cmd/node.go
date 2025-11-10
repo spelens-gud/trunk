@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spelens-gud/trunk/internal/assert"
 	"github.com/spelens-gud/trunk/internal/logger"
-	"github.com/spelens-gud/trunk/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,13 +28,13 @@ var nodeCmd = &cobra.Command{
 	Long:  `Node 服务负责节点管理和分布式协调`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Node 配置
-		utils.MustNoError(initNodeConfig(), "加载配置文件失败")
+		assert.MustNoError(initNodeConfig(), "加载配置文件失败")
 
 		// 从 Node 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(nodeViper)
 
 		// 创建日志实例
-		log := utils.MustValue(logger.NewLogger(logConfig))
+		log := assert.MustValue(logger.NewLogger(logConfig))
 		defer log.Sync()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -87,7 +87,7 @@ func initNodeConfig() error {
 		nodeViper.SetConfigFile(nodeConfigFile)
 	} else {
 		// 查找主目录
-		home := utils.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
+		home := assert.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
 
 		nodeViper.AddConfigPath(home)
 		nodeViper.AddConfigPath(".")

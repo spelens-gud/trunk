@@ -1,9 +1,11 @@
-package utils
+package assert_test
 
 import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/spelens-gud/trunk/internal/assert"
 )
 
 // TestMust 测试 Must 函数
@@ -78,7 +80,7 @@ func TestMust(t *testing.T) {
 				}
 			}()
 
-			Must(tt.condition, tt.msg...)
+			assert.Must(tt.condition, tt.msg...)
 		})
 	}
 }
@@ -150,7 +152,7 @@ func TestMustNoError(t *testing.T) {
 				}
 			}()
 
-			MustNoError(tt.err, tt.msg...)
+			assert.MustNoError(tt.err, tt.msg...)
 		})
 	}
 }
@@ -158,7 +160,7 @@ func TestMustNoError(t *testing.T) {
 // TestMustValue 测试 MustValue 函数
 func TestMustValue(t *testing.T) {
 	t.Run("错误为nil应返回值", func(t *testing.T) {
-		result := MustValue(42, nil)
+		result := assert.MustValue(42, nil)
 		if result != 42 {
 			t.Errorf("MustValue() = %v, 期望 42", result)
 		}
@@ -171,11 +173,11 @@ func TestMustValue(t *testing.T) {
 			}
 		}()
 
-		MustValue(42, errors.New("测试错误"))
+		assert.MustValue(42, errors.New("测试错误"))
 	})
 
 	t.Run("泛型支持字符串类型", func(t *testing.T) {
-		result := MustValue("hello", nil)
+		result := assert.MustValue("hello", nil)
 		if result != "hello" {
 			t.Errorf("MustValue() = %v, 期望 hello", result)
 		}
@@ -186,7 +188,7 @@ func TestMustValue(t *testing.T) {
 			Name string
 		}
 		user := User{Name: "张三"}
-		result := MustValue(user, nil)
+		result := assert.MustValue(user, nil)
 		if result.Name != "张三" {
 			t.Errorf("MustValue() = %v, 期望 张三", result.Name)
 		}
@@ -197,7 +199,7 @@ func TestMustValue(t *testing.T) {
 func TestMustFunc(t *testing.T) {
 	t.Run("函数返回nil不应panic", func(t *testing.T) {
 		called := false
-		MustFunc(func() error {
+		assert.MustFunc(func() error {
 			called = true
 			return nil
 		})
@@ -218,7 +220,7 @@ func TestMustFunc(t *testing.T) {
 			}
 		}()
 
-		MustFunc(func() error {
+		assert.MustFunc(func() error {
 			return errors.New("测试错误")
 		})
 	})
@@ -235,7 +237,7 @@ func TestMustFunc(t *testing.T) {
 			}
 		}()
 
-		MustFunc(func() error {
+		assert.MustFunc(func() error {
 			return errors.New("测试错误")
 		}, "执行失败")
 	})
@@ -244,7 +246,7 @@ func TestMustFunc(t *testing.T) {
 // TestMustTrue 测试 MustTrue 函数
 func TestMustTrue(t *testing.T) {
 	t.Run("条件为真不应panic", func(t *testing.T) {
-		MustTrue(true, "错误消息")
+		assert.MustTrue(true, "错误消息")
 	})
 
 	t.Run("条件为假应panic", func(t *testing.T) {
@@ -254,14 +256,14 @@ func TestMustTrue(t *testing.T) {
 			}
 		}()
 
-		MustTrue(false, "条件不满足")
+		assert.MustTrue(false, "条件不满足")
 	})
 }
 
 // TestMustFalse 测试 MustFalse 函数
 func TestMustFalse(t *testing.T) {
 	t.Run("条件为假不应panic", func(t *testing.T) {
-		MustFalse(false, "错误消息")
+		assert.MustFalse(false, "错误消息")
 	})
 
 	t.Run("条件为真应panic", func(t *testing.T) {
@@ -271,27 +273,27 @@ func TestMustFalse(t *testing.T) {
 			}
 		}()
 
-		MustFalse(true, "条件应该为假")
+		assert.MustFalse(true, "条件应该为假")
 	})
 }
 
 // BenchmarkMust 性能测试
 func BenchmarkMust(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Must(true, "错误消息")
+		assert.Must(true, "错误消息")
 	}
 }
 
 // BenchmarkMustNoError 性能测试
 func BenchmarkMustNoError(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		MustNoError(nil, "错误消息")
+		assert.MustNoError(nil, "错误消息")
 	}
 }
 
 // BenchmarkMustValue 性能测试
 func BenchmarkMustValue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = MustValue(42, nil)
+		_ = assert.MustValue(42, nil)
 	}
 }

@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spelens-gud/trunk/internal/assert"
 	"github.com/spelens-gud/trunk/internal/logger"
-	"github.com/spelens-gud/trunk/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,13 +28,13 @@ var fightCmd = &cobra.Command{
 	Long:  `Fight 服务负责战斗逻辑的处理`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Fight 配置
-		utils.MustNoError(initFightConfig(), "加载配置文件失败")
+		assert.MustNoError(initFightConfig(), "加载配置文件失败")
 
 		// 从 Fight 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(fightViper)
 
 		// 创建日志实例
-		log := utils.MustValue(logger.NewLogger(logConfig))
+		log := assert.MustValue(logger.NewLogger(logConfig))
 		defer log.Sync()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -86,7 +86,7 @@ func initFightConfig() error {
 		fightViper.SetConfigFile(fightConfigFile)
 	} else {
 		// 查找主目录
-		home := utils.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
+		home := assert.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
 
 		fightViper.AddConfigPath(home)
 		fightViper.AddConfigPath(".")
