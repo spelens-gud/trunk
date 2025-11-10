@@ -1,7 +1,7 @@
 .PHONY: build test lint run clean install
 
 # 版本信息
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "unknown")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE ?= $(shell date -u '+%Y-%m-%d %H:%M:%S')
 GO_VERSION ?= $(shell go version | awk '{print $$3}')

@@ -1,5 +1,5 @@
 # Gate 服务配置
-logger:
+Logger:
   service_name: "gate"
   environment: "dev"
   log_level: "info"
@@ -13,3 +13,36 @@ logger:
   compress: true
   enable_caller: true
   enable_stacktrace: true
+
+  Etcd:
+    hosts: [ "192.168.6.54:2379" ]
+    projectPrefix: "/wsh/moba"
+    serverPrefix: "servers"
+    commonPrefix: "common"
+    masterPrefix: "master"
+    friendPrefix: "friend"
+    roomPrefix: "room"
+    user:
+    pass:
+    certFile:
+    certKeyFile:
+    caCertFile:
+    id:
+    insecureSkipVerify:
+
+DB:
+  server:
+    driver: "postgres"
+    host: "192.168.6.54"
+    port: 5432
+    username: "root"
+    password: "123321"
+    maxIdleConns: 1
+    maxOpenConns: 1
+
+Servers:
+  - name: "gate"
+    configPath: "./excel"
+    logPath: "./logs/gate"
+    ip: "192.168.6.3" ## 本机内网ip
+    port: 30999

@@ -107,19 +107,19 @@ func DefaultEncoderConfig() zapcore.EncoderConfig {
 // LoadConfigFromViper 从指定的 viper 实例加载日志配置
 func LoadConfigFromViper(v *viper.Viper) *Config {
 	return &Config{
-		ServiceName:      v.GetString("logger.service_name"),
-		Environment:      v.GetString("logger.environment"),
-		Level:            v.GetString("logger.log_level"),
-		Console:          v.GetBool("logger.console"),
-		File:             v.GetBool("logger.file"),
-		FilePath:         v.GetString("logger.file_path"),
-		FileName:         v.GetString("logger.file_name"),
-		MaxSize:          v.GetInt("logger.max_size"),
-		MaxAge:           v.GetInt("logger.max_age"),
-		MaxBackups:       v.GetInt("logger.max_backups"),
-		Compress:         v.GetBool("logger.compress"),
-		EnableCaller:     v.GetBool("logger.enable_caller"),
-		EnableStacktrace: v.GetBool("logger.enable_stacktrace"),
+		ServiceName:      v.GetString("Logger.service_name"),
+		Environment:      v.GetString("Logger.environment"),
+		Level:            v.GetString("Logger.log_level"),
+		Console:          v.GetBool("Logger.console"),
+		File:             v.GetBool("Logger.file"),
+		FilePath:         v.GetString("Logger.file_path"),
+		FileName:         v.GetString("Logger.file_name"),
+		MaxSize:          v.GetInt("Logger.max_size"),
+		MaxAge:           v.GetInt("Logger.max_age"),
+		MaxBackups:       v.GetInt("Logger.max_backups"),
+		Compress:         v.GetBool("Logger.compress"),
+		EnableCaller:     v.GetBool("Logger.enable_caller"),
+		EnableStacktrace: v.GetBool("Logger.enable_stacktrace"),
 	}
 }
 

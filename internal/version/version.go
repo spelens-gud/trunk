@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	Version   = "dev"             // Version 应用版本号
+	Version   = "unknown"         // Version 应用版本号
 	GitCommit = "unknown"         // GitCommit Git 提交哈希
 	BuildDate = "unknown"         // BuildDate 构建日期
 	GoVersion = runtime.Version() // GoVersion Go 版本
