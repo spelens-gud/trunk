@@ -32,7 +32,7 @@ func Must(condition bool, msg ...any) {
 }
 
 // MustNoError 断言错误必须为 nil，否则触发 panic
-func MustNoError(err error, msg ...any) {
+func mustNoError(err error, msg ...any) {
 	if err == nil {
 		return
 	}
@@ -56,24 +56,27 @@ func MustNoError(err error, msg ...any) {
 
 // MustValue 返回值并断言错误必须为 nil
 // 用法: value := MustValue(someFunc())
-func MustValue[T any](value T, err error) T {
-	MustNoError(err)
+func MustValue[T any](value T, err error, msg ...any) T {
+	mustNoError(err, msg)
+
 	return value
 }
 
 // MustFunc 执行函数并断言其返回的错误必须为 nil
 func MustFunc(f func() error, msg ...any) {
 	err := f()
-	MustNoError(err, msg...)
+	mustNoError(err, msg...)
 }
 
+// MustFuncValue 执行函数并返回其返回值并断言其错误必须为 nil
 func MustFuncValue[T any](f func() (T, error), msg ...any) T {
 	value, err := f()
-	MustNoError(err, msg)
+	mustNoError(err, msg...)
+
 	return value
 }
 
-// MustTrue 断言条件必须为真（Must 的别名，语义更清晰）
+// MustTrue 断言条件必须为真(Must 的别名，语义更清晰)
 func MustTrue(condition bool, msg ...any) {
 	Must(condition, msg...)
 }

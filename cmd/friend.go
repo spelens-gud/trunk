@@ -28,7 +28,7 @@ var friendCmd = &cobra.Command{
 	Long:  `Friend 服务负责好友系统的管理`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Friend 配置
-		assert.MustNoError(initFriendConfig(), "加载配置文件失败")
+		assert.MustFunc(initFriendConfig, "加载配置文件失败")
 
 		// 从 Friend 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(friendViper)

@@ -67,6 +67,7 @@ func TestMust(t *testing.T) {
 				if tt.wantPanic {
 					if r == nil {
 						t.Errorf("期望 panic 但没有发生")
+
 						return
 					}
 					panicMsg := fmt.Sprint(r)
@@ -81,78 +82,6 @@ func TestMust(t *testing.T) {
 			}()
 
 			assert.Must(tt.condition, tt.msg...)
-		})
-	}
-}
-
-// TestMustNoError 测试 MustNoError 函数
-func TestMustNoError(t *testing.T) {
-	testErr := errors.New("测试错误")
-
-	tests := []struct {
-		name      string
-		err       error
-		msg       []any
-		wantPanic bool
-		panicMsg  string
-	}{
-		{
-			name:      "错误为nil不应panic",
-			err:       nil,
-			msg:       []any{"错误消息"},
-			wantPanic: false,
-		},
-		{
-			name:      "错误不为nil无消息应panic错误本身",
-			err:       testErr,
-			msg:       []any{},
-			wantPanic: true,
-			panicMsg:  "测试错误",
-		},
-		{
-			name:      "错误不为nil单个字符串消息",
-			err:       testErr,
-			msg:       []any{"操作失败"},
-			wantPanic: true,
-			panicMsg:  "操作失败: 测试错误",
-		},
-		{
-			name:      "错误不为nil单个非字符串消息",
-			err:       testErr,
-			msg:       []any{123},
-			wantPanic: true,
-			panicMsg:  "123: 测试错误",
-		},
-		{
-			name:      "错误不为nil格式化消息",
-			err:       testErr,
-			msg:       []any{"文件 %s 操作失败", "test.txt"},
-			wantPanic: true,
-			panicMsg:  "文件 test.txt 操作失败: 测试错误",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				r := recover()
-				if tt.wantPanic {
-					if r == nil {
-						t.Errorf("期望 panic 但没有发生")
-						return
-					}
-					panicMsg := fmt.Sprint(r)
-					if panicMsg != tt.panicMsg {
-						t.Errorf("panic 消息 = %v, 期望 %v", panicMsg, tt.panicMsg)
-					}
-				} else {
-					if r != nil {
-						t.Errorf("不期望 panic 但发生了: %v", r)
-					}
-				}
-			}()
-
-			assert.MustNoError(tt.err, tt.msg...)
 		})
 	}
 }
@@ -281,13 +210,6 @@ func TestMustFalse(t *testing.T) {
 func BenchmarkMust(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		assert.Must(true, "错误消息")
-	}
-}
-
-// BenchmarkMustNoError 性能测试
-func BenchmarkMustNoError(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		assert.MustNoError(nil, "错误消息")
 	}
 }
 

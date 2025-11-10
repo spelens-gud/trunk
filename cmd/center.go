@@ -28,7 +28,7 @@ var centerCmd = &cobra.Command{
 	Long:  `Center 服务负责中心服务器的管理和协调`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Center 配置
-		assert.MustNoError(initCenterConfig(), "加载配置文件失败")
+		assert.MustFunc(initCenterConfig, "加载配置文件失败")
 
 		// 从 Center 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(centerViper)

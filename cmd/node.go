@@ -28,7 +28,7 @@ var nodeCmd = &cobra.Command{
 	Long:  `Node 服务负责节点管理和分布式协调`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Node 配置
-		assert.MustNoError(initNodeConfig(), "加载配置文件失败")
+		assert.MustFunc(initNodeConfig, "加载配置文件失败")
 
 		// 从 Node 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(nodeViper)

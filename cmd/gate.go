@@ -28,7 +28,7 @@ var gateCmd = &cobra.Command{
 	Long:  `Gate 服务负责网关和连接管理`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Gate 配置
-		assert.MustNoError(initGateConfig(), "加载配置文件失败")
+		assert.MustFunc(initGateConfig, "加载配置文件失败")
 
 		// 从 Gate 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(gateViper)

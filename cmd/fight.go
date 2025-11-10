@@ -28,7 +28,7 @@ var fightCmd = &cobra.Command{
 	Long:  `Fight 服务负责战斗逻辑的处理`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Fight 配置
-		assert.MustNoError(initFightConfig(), "加载配置文件失败")
+		assert.MustFunc(initFightConfig, "加载配置文件失败")
 
 		// 从 Fight 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(fightViper)
@@ -104,6 +104,7 @@ func initFightConfig() error {
 	}
 
 	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", fightViper.ConfigFileUsed())
+
 	return nil
 }
 
@@ -111,11 +112,12 @@ func initFightConfig() error {
 func gracefulShutdownFightServer(ctx context.Context) error {
 	log.Println("开始优雅关闭客户端...")
 
-	// TODO: 实现客户端关闭资源释放
+	// TODO实现客户端关闭资源释放
 
 	select {
 	case <-time.After(1 * time.Second):
 		log.Println("客户端关闭完成")
+
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
