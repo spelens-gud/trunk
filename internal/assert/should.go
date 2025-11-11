@@ -1,107 +1,119 @@
 package assert
 
 import (
+	"errors"
 	"fmt"
-
-	"github.com/spelens-gud/trunk/internal/logger"
+	"os"
 )
 
-// Should 断言条件应该为真，否则静默失败
+// Should 断言条件应该为真，否则返回错误
 // 支持多种消息格式：
 //   - Should(true, "错误")           // 单个消息
 //   - Should(true, "错误: %v", err)  // 格式化消息
 //   - Should(true, err)              // 直接传递 error
-func Should(log logger.ILogger, condition bool, msg ...any) {
+func Should(condition bool, msg ...any) error {
 	if condition {
-		return
+		return nil
 	}
 
+	var err error
 	// 没有消息时使用默认消息
 	if len(msg) == 0 {
-		log.Errorf("断言失败")
-		return
+		err = errors.New("断言失败")
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		return err
 	}
 
 	// 单个参数处理
 	if len(msg) == 1 {
-		if err, ok := msg[0].(error); ok {
-			log.Errorf(err.Error())
-			return
+		if e, ok := msg[0].(error); ok {
+			fmt.Fprintf(os.Stderr, "%s\n", e.Error())
+			return e
 		}
 		if format, ok := msg[0].(string); ok {
-			log.Errorf("%s", format)
-			return
+			err = errors.New(format)
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			return err
 		}
 
-		log.Errorf("%v", msg[0])
-		return
+		err = fmt.Errorf("%v", msg[0])
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		return err
 	}
 
 	// 多个参数时尝试格式化
 	if format, ok := msg[0].(string); ok {
-		log.Errorf(format, msg[1:]...)
-		return
+		err = fmt.Errorf(format, msg[1:]...)
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		return err
 	}
 
 	// 其他情况使用 Sprint
-	log.Errorf("%s", fmt.Sprint(msg...))
+	err = errors.New(fmt.Sprint(msg...))
+	fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+	return err
 }
 
-// shouldNoError 断言错误应该为 nil，否则静默失败
-func shouldNoError(log logger.ILogger, err error, msg ...any) {
+// shouldNoError 断言错误应该为 nil，否则返回错误
+func shouldNoError(err error, msg ...any) error {
 	if err == nil {
-		return
+		return nil
 	}
 
+	var resultErr error
 	if len(msg) == 0 {
-		log.Errorf("错误: %v", err)
+		resultErr = fmt.Errorf("错误: %w", err)
+		fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
+		return resultErr
 	}
 
 	if len(msg) == 1 {
 		if format, ok := msg[0].(string); ok {
-			log.Errorf("%s: %v", format, err)
+			resultErr = fmt.Errorf("%s: %w", format, err)
+			fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
+			return resultErr
 		}
 
-		log.Errorf("%v: %v", msg[0], err)
+		resultErr = fmt.Errorf("%v: %w", msg[0], err)
+		fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
+		return resultErr
 	}
 
 	if format, ok := msg[0].(string); ok {
-		log.Errorf(format+": %w", append(msg[1:], err)...)
+		resultErr = fmt.Errorf(format+": %w", append(msg[1:], err)...)
+		fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
+		return resultErr
 	}
 
-	log.Errorf("%s: %v", fmt.Sprint(msg...), err)
+	resultErr = fmt.Errorf("%s: %w", fmt.Sprint(msg...), err)
+	fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
+	return resultErr
 }
 
 // ShouldValue 返回值和错误，如果错误不为 nil 则包装错误信息
 // 用法: value, err := ShouldValue(someFunc())
-func ShouldValue[T any](log logger.ILogger, value T, err error) T {
-	shouldNoError(log, err)
-
-	return value
+func ShouldValue[T any](value T, err error) (T, error) {
+	return value, shouldNoError(err)
 }
 
 // ShouldFunc 执行函数并返回其错误（可选包装）
-func ShouldFunc(log logger.ILogger, f func() error, msg ...any) {
+func ShouldFunc(f func() error, msg ...any) error {
 	err := f()
-
-	shouldNoError(log, err, msg...)
+	return shouldNoError(err, msg...)
 }
 
 // ShouldFuncValue 执行函数并返回值和错误（可选包装）
-func ShouldFuncValue[T any](log logger.ILogger, f func() (T, error), msg ...any) T {
+func ShouldFuncValue[T any](f func() (T, error), msg ...any) (T, error) {
 	value, err := f()
-
-	shouldNoError(log, err, msg...)
-
-	return value
+	return value, shouldNoError(err, msg...)
 }
 
 // ShouldTrue 断言条件应该为真（Should 的别名，语义更清晰）
-func ShouldTrue(log logger.ILogger, condition bool, msg ...any) {
-	Should(log, condition, msg...)
+func ShouldTrue(condition bool, msg ...any) error {
+	return Should(condition, msg...)
 }
 
 // ShouldFalse 断言条件应该为假
-func ShouldFalse(log logger.ILogger, condition bool, msg ...any) {
-	Should(log, !condition, msg...)
+func ShouldFalse(condition bool, msg ...any) error {
+	return Should(!condition, msg...)
 }
