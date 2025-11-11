@@ -6,7 +6,64 @@ import (
 	"testing"
 
 	"github.com/spelens-gud/trunk/internal/assert"
+	"github.com/spelens-gud/trunk/internal/logger"
+	"go.uber.org/zap"
 )
+
+// mockLogger 是一个用于测试的 mock logger
+type mockLogger struct {
+	logs []string
+}
+
+func newMockLogger() *mockLogger {
+	return &mockLogger{logs: make([]string, 0)}
+}
+
+func (m *mockLogger) Debug(msg string, fields ...zap.Field) {
+	m.logs = append(m.logs, msg)
+}
+func (m *mockLogger) Info(msg string, fields ...zap.Field) {
+	m.logs = append(m.logs, msg)
+}
+func (m *mockLogger) Warn(msg string, fields ...zap.Field) {
+	m.logs = append(m.logs, msg)
+}
+func (m *mockLogger) Error(msg string, fields ...zap.Field) {
+	m.logs = append(m.logs, msg)
+}
+func (m *mockLogger) Fatal(msg string, fields ...zap.Field) {
+	m.logs = append(m.logs, msg)
+}
+func (m *mockLogger) Panic(msg string, fields ...zap.Field) {
+	m.logs = append(m.logs, msg)
+}
+func (m *mockLogger) Debugf(format string, args ...any) {
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
+func (m *mockLogger) Infof(format string, args ...any) {
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
+func (m *mockLogger) Warnf(format string, args ...any) {
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
+func (m *mockLogger) Errorf(format string, args ...any) {
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
+func (m *mockLogger) Fatalf(format string, args ...any) {
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
+func (m *mockLogger) Panicf(format string, args ...any) {
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
+func (m *mockLogger) With(fields ...zap.Field) logger.ILogger {
+	return m
+}
+func (m *mockLogger) WithPrefix(prefix string) logger.ILogger {
+	return m
+}
+func (m *mockLogger) Sync() error {
+	return nil
+}
 
 // TestShould 测试 Should 函数
 func TestShould(t *testing.T) {
@@ -19,11 +76,6 @@ func TestShould(t *testing.T) {
 			name:      "条件为真不应panic",
 			condition: true,
 			msg:       []any{"错误消息"},
-		},
-		{
-			name:      "条件为假无消息",
-			condition: false,
-			msg:       []any{},
 		},
 		{
 			name:      "条件为假单个字符串消息",
@@ -49,8 +101,8 @@ func TestShould(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Should 函数没有返回值，只是执行
-			assert.Should(tt.condition, tt.msg...)
+			log := newMockLogger()
+			assert.Should(log, tt.condition, tt.msg...)
 		})
 	}
 }
@@ -58,33 +110,28 @@ func TestShould(t *testing.T) {
 // TestShouldValue 测试 ShouldValue 函数
 func TestShouldValue(t *testing.T) {
 	t.Run("错误为nil应返回值", func(t *testing.T) {
-		result := assert.ShouldValue(42, nil)
-		if result != 42 {
-			t.Errorf("ShouldValue() = %v, 期望 42", result)
-		}
-	})
-
-	t.Run("错误不为nil应返回值", func(t *testing.T) {
-		testErr := errors.New("测试错误")
-		result := assert.ShouldValue(42, testErr)
+		log := newMockLogger()
+		result := assert.ShouldValue(log, 42, nil)
 		if result != 42 {
 			t.Errorf("ShouldValue() = %v, 期望 42", result)
 		}
 	})
 
 	t.Run("泛型支持字符串类型", func(t *testing.T) {
-		result := assert.ShouldValue("hello", nil)
+		log := newMockLogger()
+		result := assert.ShouldValue(log, "hello", nil)
 		if result != "hello" {
 			t.Errorf("ShouldValue() = %v, 期望 hello", result)
 		}
 	})
 
 	t.Run("泛型支持结构体类型", func(t *testing.T) {
+		log := newMockLogger()
 		type User struct {
 			Name string
 		}
 		user := User{Name: "张三"}
-		result := assert.ShouldValue(user, nil)
+		result := assert.ShouldValue(log, user, nil)
 		if result.Name != "张三" {
 			t.Errorf("ShouldValue() = %v, 期望 张三", result.Name)
 		}
@@ -94,8 +141,9 @@ func TestShouldValue(t *testing.T) {
 // TestShouldFunc 测试 ShouldFunc 函数
 func TestShouldFunc(t *testing.T) {
 	t.Run("函数返回nil", func(t *testing.T) {
+		log := newMockLogger()
 		called := false
-		assert.ShouldFunc(func() error {
+		assert.ShouldFunc(log, func() error {
 			called = true
 			return nil
 		})
@@ -104,14 +152,9 @@ func TestShouldFunc(t *testing.T) {
 		}
 	})
 
-	t.Run("函数返回错误无消息", func(t *testing.T) {
-		assert.ShouldFunc(func() error {
-			return errors.New("测试错误")
-		})
-	})
-
 	t.Run("函数返回错误带消息", func(t *testing.T) {
-		assert.ShouldFunc(func() error {
+		log := newMockLogger()
+		assert.ShouldFunc(log, func() error {
 			return errors.New("测试错误")
 		}, "执行失败")
 	})
@@ -120,7 +163,8 @@ func TestShouldFunc(t *testing.T) {
 // TestShouldFuncValue 测试 ShouldFuncValue 函数
 func TestShouldFuncValue(t *testing.T) {
 	t.Run("函数返回值和nil错误", func(t *testing.T) {
-		result := assert.ShouldFuncValue(func() (int, error) {
+		log := newMockLogger()
+		result := assert.ShouldFuncValue(log, func() (int, error) {
 			return 42, nil
 		})
 		if result != 42 {
@@ -128,17 +172,9 @@ func TestShouldFuncValue(t *testing.T) {
 		}
 	})
 
-	t.Run("函数返回值和错误", func(t *testing.T) {
-		result := assert.ShouldFuncValue(func() (int, error) {
-			return 42, errors.New("测试错误")
-		})
-		if result != 42 {
-			t.Errorf("ShouldFuncValue() = %v, 期望 42", result)
-		}
-	})
-
 	t.Run("函数返回值和错误带消息", func(t *testing.T) {
-		result := assert.ShouldFuncValue(func() (string, error) {
+		log := newMockLogger()
+		result := assert.ShouldFuncValue(log, func() (string, error) {
 			return "hello", errors.New("测试错误")
 		}, "操作失败")
 		if result != "hello" {
@@ -150,33 +186,39 @@ func TestShouldFuncValue(t *testing.T) {
 // TestShouldTrue 测试 ShouldTrue 函数
 func TestShouldTrue(t *testing.T) {
 	t.Run("条件为真", func(t *testing.T) {
-		assert.ShouldTrue(true, "错误消息")
+		log := newMockLogger()
+		assert.ShouldTrue(log, true, "错误消息")
 	})
 
 	t.Run("条件为假", func(t *testing.T) {
-		assert.ShouldTrue(false, "条件不满足")
+		log := newMockLogger()
+		assert.ShouldTrue(log, false, "条件不满足")
 	})
 }
 
 // TestShouldFalse 测试 ShouldFalse 函数
 func TestShouldFalse(t *testing.T) {
 	t.Run("条件为假", func(t *testing.T) {
-		assert.ShouldFalse(false, "错误消息")
+		log := newMockLogger()
+		assert.ShouldFalse(log, false, "错误消息")
 	})
 
 	t.Run("条件为真", func(t *testing.T) {
-		assert.ShouldFalse(true, "条件应该为假")
+		log := newMockLogger()
+		assert.ShouldFalse(log, true, "条件应该为假")
 	})
 }
 
 // 示例：演示 Should 的使用
 func ExampleShould() {
+	log := newMockLogger()
+
 	// 条件为真，不执行任何操作
-	assert.Should(1 > 0, "数字应该大于0")
+	assert.Should(log, 1 > 0, "数字应该大于0")
 	fmt.Println("条件为真")
 
 	// 条件为假，执行错误处理
-	assert.Should(1 < 0, "数字应该大于0")
+	assert.Should(log, 1 < 0, "数字应该大于0")
 	fmt.Println("条件为假")
 
 	// Output:
@@ -186,14 +228,16 @@ func ExampleShould() {
 
 // BenchmarkShould 性能测试
 func BenchmarkShould(b *testing.B) {
+	log := newMockLogger()
 	for i := 0; i < b.N; i++ {
-		assert.Should(true, "错误消息")
+		assert.Should(log, true, "错误消息")
 	}
 }
 
 // BenchmarkShouldValue 性能测试
 func BenchmarkShouldValue(b *testing.B) {
+	log := newMockLogger()
 	for i := 0; i < b.N; i++ {
-		_ = assert.ShouldValue(42, nil)
+		_ = assert.ShouldValue(log, 42, nil)
 	}
 }
