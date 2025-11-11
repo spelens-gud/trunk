@@ -65,8 +65,8 @@ func shouldNoError(err error, msg ...any) {
 
 // ShouldValue 返回值和错误，如果错误不为 nil 则包装错误信息
 // 用法: value, err := ShouldValue(someFunc())
-func ShouldValue[T any](value T, err error, msg ...any) T {
-	shouldNoError(err, msg...)
+func ShouldValue[T any](value T, err error) T {
+	shouldNoError(err)
 
 	return value
 }
