@@ -28,16 +28,16 @@ type Registry interface {
 	Deregister() error
 
 	// GetValue 获取单个值
-	GetValue(key string, opts ...interface{}) string
+	GetValue(key string, opts ...any) string
 
 	// GetValues 获取多个值
-	GetValues(key string, opts ...interface{}) interface{}
+	GetValues(key string, opts ...any) any
 
 	// Put 创建或更新键值
 	Put(ctx context.Context, key string, val string) error
 
 	// Watch 监听键变化
-	Watch(ctx context.Context, prefix string) interface{}
+	Watch(ctx context.Context, prefix string) any
 
 	// Close 关闭注册中心连接
 	Close() error

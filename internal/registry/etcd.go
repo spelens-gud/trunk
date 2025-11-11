@@ -35,9 +35,6 @@ type EtcdRegistry struct {
 // 确保 EtcdRegistry 实现了 Registry 接口
 var _ Registry = (*EtcdRegistry)(nil)
 
-// ServiceCache 服务缓存（保持向后兼容）
-type ServiceCache = EtcdRegistry
-
 // New 创建服务缓存
 func (s *EtcdRegistry) New() (err error) {
 	config := clientv3.Config{
@@ -54,8 +51,11 @@ func (s *EtcdRegistry) New() (err error) {
 
 	// 添加TLS支持
 	assert.Then(s.cnf.HasTLS()).Do(func() {
-		tlsConfig := s.cnf.LoadTLSConfig()
-
+		tlsConfig, err := s.cnf.LoadTLSConfig()
+		if err != nil {
+			s.log.Errorf("TLS 加载配置文件错误")
+			return
+		}
 		config.TLS = tlsConfig
 		s.log.Infof("启用etcd TLS连接")
 	})

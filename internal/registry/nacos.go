@@ -3,6 +3,12 @@ package registry
 import (
 	"context"
 	"fmt"
+
+	"github.com/nacos-group/nacos-sdk-go/v2/clients"
+	"github.com/nacos-group/nacos-sdk-go/v2/clients/naming_client"
+	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
+
 	"sync"
 
 	"github.com/spelens-gud/trunk/internal/logger"
@@ -10,13 +16,12 @@ import (
 
 // NacosRegistry nacos注册中心实现
 type NacosRegistry struct {
-	// TODO: 添加 nacos-sdk-go 客户端
-	// namingClient naming_client.INamingClient
-	cnf    *NacosConfig
-	log    logger.ILogger
-	lock   sync.RWMutex
-	ctx    context.Context
-	cancel context.CancelFunc
+	namingClient naming_client.INamingClient
+	cnf          *NacosConfig
+	log          logger.ILogger
+	lock         sync.RWMutex
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 // 确保 NacosRegistry 实现了 Registry 接口
@@ -27,44 +32,40 @@ func (n *NacosRegistry) New() error {
 	n.ctx, n.cancel = context.WithCancel(context.Background())
 	n.log.Infof("初始化nacos注册中心，服务器: %v", n.cnf.Hosts)
 
-	// TODO: 实现nacos客户端初始化
-	// 示例代码（需要引入 github.com/nacos-group/nacos-sdk-go/v2）:
-	/*
-		serverConfigs := make([]constant.ServerConfig, 0, len(n.cnf.Hosts))
-		for _, host := range n.cnf.Hosts {
-			serverConfigs = append(serverConfigs, constant.ServerConfig{
-				IpAddr: host,
-				Port:   n.cnf.GetPort(),
-			})
-		}
+	serverConfigs := make([]constant.ServerConfig, 0, len(n.cnf.Hosts))
+	for _, host := range n.cnf.Hosts {
+		serverConfigs = append(serverConfigs, constant.ServerConfig{
+			IpAddr: host,
+			Port:   n.cnf.GetPort(),
+		})
+	}
 
-		clientConfig := constant.ClientConfig{
-			NamespaceId:         n.cnf.NamespaceId,
-			TimeoutMs:           5000,
-			NotLoadCacheAtStart: true,
-			LogDir:              n.cnf.LogDir,
-			CacheDir:            n.cnf.CacheDir,
-			LogLevel:            n.cnf.LogLevel,
-		}
+	clientConfig := constant.ClientConfig{
+		NamespaceId:         n.cnf.NamespaceId,
+		TimeoutMs:           5000,
+		NotLoadCacheAtStart: true,
+		LogDir:              n.cnf.LogDir,
+		CacheDir:            n.cnf.CacheDir,
+		LogLevel:            n.cnf.LogLevel,
+	}
 
-		if n.cnf.HasAuth() {
-			clientConfig.Username = n.cnf.Username
-			clientConfig.Password = n.cnf.Password
-		}
+	if n.cnf.HasAuth() {
+		clientConfig.Username = n.cnf.Username
+		clientConfig.Password = n.cnf.Password
+	}
 
-		namingClient, err := clients.NewNamingClient(
-			vo.NacosClientParam{
-				ClientConfig:  &clientConfig,
-				ServerConfigs: serverConfigs,
-			},
-		)
-		if err != nil {
-			n.log.Errorf("创建nacos客户端失败: %v", err)
-			return fmt.Errorf("创建nacos客户端失败: %w", err)
-		}
+	namingClient, err := clients.NewNamingClient(
+		vo.NacosClientParam{
+			ClientConfig:  &clientConfig,
+			ServerConfigs: serverConfigs,
+		},
+	)
+	if err != nil {
+		n.log.Errorf("创建nacos客户端失败: %v", err)
+		return fmt.Errorf("创建nacos客户端失败: %w", err)
+	}
 
-		n.namingClient = namingClient
-	*/
+	n.namingClient = namingClient
 
 	n.log.Warnf("nacos注册中心实现待完成，请引入 github.com/nacos-group/nacos-sdk-go/v2")
 	return nil
