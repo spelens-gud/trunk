@@ -1,14 +1,12 @@
 package registry
 
 import (
-	"errors"
-)
+	"crypto/tls"
+	"crypto/x509"
+	"os"
+	"time"
 
-var (
-	// errEmptyEtcdHosts etcd主机列表为空
-	errEmptyEtcdHosts = errors.New("empty registry hosts")
-	// errEmptyEtcdKey etcd键值为空
-	errEmptyEtcdKey = errors.New("empty registry key")
+	"github.com/spelens-gud/trunk/internal/assert"
 )
 
 // EtcdConfig etcd配置
@@ -22,6 +20,8 @@ type EtcdConfig struct {
 	CertKeyFile        string   `yaml:"certKeyFile"`        // etcd密钥文件
 	CACertFile         string   `yaml:"caCertFile"`         // etcdCA证书文件
 	InsecureSkipVerify bool     `yaml:"insecureSkipVerify"` // 是否跳过证书验证
+	LeaseTTL           int64    `yaml:"leaseTTL"`           // 租约TTL（秒），默认6秒
+	DialTimeout        int      `yaml:"dialTimeout"`        // 连接超时时间（秒），默认5秒
 }
 
 // Copy 复制
@@ -39,7 +39,27 @@ func (c *EtcdConfig) Copy() *EtcdConfig {
 		CertKeyFile:        c.CertKeyFile,
 		CACertFile:         c.CACertFile,
 		InsecureSkipVerify: c.InsecureSkipVerify,
+		LeaseTTL:           c.LeaseTTL,
+		DialTimeout:        c.DialTimeout,
 	}
+}
+
+// GetLeaseTTL 获取租约TTL，如果未设置则返回默认值6秒
+func (c *EtcdConfig) GetLeaseTTL() int64 {
+	if c.LeaseTTL <= 0 {
+		return 6
+	}
+
+	return c.LeaseTTL
+}
+
+// GetDialTimeout 获取连接超时时间，如果未设置则返回默认值5秒
+func (c *EtcdConfig) GetDialTimeout() time.Duration {
+	if c.DialTimeout <= 0 {
+		return 5 * time.Second
+	}
+
+	return time.Duration(c.DialTimeout) * time.Second
 }
 
 // HasAccount 是否有账号
@@ -59,11 +79,46 @@ func (c *EtcdConfig) HasTLS() bool {
 
 // Validate 验证
 func (c *EtcdConfig) Validate() error {
-	if len(c.Hosts) == 0 {
-		return errEmptyEtcdHosts
-	} else if len(c.Key) == 0 {
-		return errEmptyEtcdKey
-	} else {
-		return nil
+	if err := assert.ShouldTrue(len(c.Hosts) > 0, "注册etcd主机列表不能为空"); err != nil {
+		return err
 	}
+	if err := assert.ShouldTrue(len(c.Key) > 0, "注册etcd键值不能为空"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetType 获取注册中心类型
+func (c *EtcdConfig) GetType() RegistryType {
+	return RegistryTypeEtcd
+}
+
+// LoadTLSConfig 加载TLS配置
+func (c *EtcdConfig) LoadTLSConfig() (config *tls.Config, err error) {
+	if !c.HasTLS() {
+		return nil, nil
+	}
+
+	// 加载客户端证书
+	cert, err := assert.ShouldValue(tls.LoadX509KeyPair(c.CertFile, c.CertKeyFile))
+	if err != nil {
+		return nil, err
+	}
+
+	// 加载CA证书
+	caCert, err := assert.ShouldValue(os.ReadFile(c.CACertFile))
+	if err != nil {
+		return nil, err
+	}
+
+	caCertPool := x509.NewCertPool()
+	if err := assert.ShouldTrue(caCertPool.AppendCertsFromPEM(caCert), "failed to append CA certificate"); err != nil {
+		return nil, err
+	}
+
+	return &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: c.InsecureSkipVerify,
+	}, nil
 }
