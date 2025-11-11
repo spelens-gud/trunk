@@ -82,7 +82,7 @@ func ShouldFunc(f func() error, msg ...any) {
 func ShouldFuncValue[T any](f func() (T, error), msg ...any) T {
 	value, err := f()
 
-	ShouldValue(value, err, msg...)
+	shouldNoError(err, msg...)
 
 	return value
 }
