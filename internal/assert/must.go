@@ -56,8 +56,8 @@ func mustNoError(err error, msg ...any) {
 
 // MustValue 返回值并断言错误必须为 nil
 // 用法: value := MustValue(someFunc())
-func MustValue[T any](value T, err error, msg ...any) T {
-	mustNoError(err, msg)
+func MustValue[T any](value T, err error) T {
+	mustNoError(err)
 
 	return value
 }
