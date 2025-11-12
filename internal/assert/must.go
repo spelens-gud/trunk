@@ -42,6 +42,17 @@ func mustNoError(err error, msg ...any) {
 	}
 
 	logPanic(err, msg...)
+
+	// 构造panic消息
+	if len(msg) > 0 {
+		if format, ok := msg[0].(string); ok && len(msg) > 1 {
+			panic(fmt.Sprintf(format+": %v", append(msg[1:], err)...))
+		} else {
+			panic(fmt.Sprintf("%v: %v", fmt.Sprint(msg...), err))
+		}
+	} else {
+		panic(err)
+	}
 }
 
 // MustCall0E 执行无参数返回error的函数，错误不为nil时panic

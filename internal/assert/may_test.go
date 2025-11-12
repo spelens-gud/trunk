@@ -105,147 +105,43 @@ func TestMayFalse(t *testing.T) {
 	})
 }
 
-// TestMayValue 测试 MayValue 函数
-func TestMayValue(t *testing.T) {
-	t.Run("错误为nil应执行onSuccess回调并返回值", func(t *testing.T) {
-		var receivedValue int
-		result := assert.MayValue(42, nil,
-			func(v int) { receivedValue = v },
-			func(err error) {},
-		)
+// TestMayWithError 测试 May 函数处理错误场景
+func TestMayWithError(t *testing.T) {
+	t.Run("使用May处理错误情况", func(t *testing.T) {
+		err := errors.New("测试错误")
+		errorHandled := false
 
-		if result != 42 {
-			t.Errorf("返回值 = %v, 期望 42", result)
-		}
-		if receivedValue != 42 {
-			t.Errorf("onSuccess 接收到的值 = %v, 期望 42", receivedValue)
-		}
-	})
-
-	t.Run("错误不为nil应执行onError回调并返回零值", func(t *testing.T) {
-		var receivedErr error
-		testErr := errors.New("测试错误")
-
-		result := assert.MayValue(42, testErr,
-			func(v int) {},
-			func(err error) { receivedErr = err },
-		)
-
-		if result != 0 {
-			t.Errorf("返回值 = %v, 期望 0", result)
-		}
-		if receivedErr != testErr {
-			t.Errorf("onError 接收到的错误 = %v, 期望 %v", receivedErr, testErr)
-		}
-	})
-
-	t.Run("泛型支持字符串类型", func(t *testing.T) {
-		result := assert.MayValue("hello", nil, nil, nil)
-		if result != "hello" {
-			t.Errorf("返回值 = %v, 期望 hello", result)
-		}
-
-		result = assert.MayValue("hello", errors.New("错误"), nil, nil)
-		if result != "" {
-			t.Errorf("返回值 = %v, 期望空字符串", result)
-		}
-	})
-
-	t.Run("泛型支持结构体类型", func(t *testing.T) {
-		type User struct {
-			Name string
-		}
-		user := User{Name: "张三"}
-
-		result := assert.MayValue(user, nil, nil, nil)
-		if result.Name != "张三" {
-			t.Errorf("返回值 = %v, 期望 张三", result.Name)
-		}
-
-		result = assert.MayValue(user, errors.New("错误"), nil, nil)
-		if result.Name != "" {
-			t.Errorf("返回值应该是零值")
-		}
-	})
-
-	t.Run("回调为nil不应panic", func(t *testing.T) {
-		assert.MayValue(42, nil, nil, nil)
-		assert.MayValue(42, errors.New("错误"), nil, nil)
-	})
-}
-
-// TestMayFunc 测试 MayFunc 函数
-func TestMayFunc(t *testing.T) {
-	t.Run("函数返回nil应执行onSuccess回调", func(t *testing.T) {
-		funcCalled := false
-		successCalled := false
-
-		assert.MayFunc(
-			func() error {
-				funcCalled = true
-				return nil
+		assert.May(err == nil,
+			func() {
+				// 成功时执行
 			},
-			func() { successCalled = true },
-			func(err error) {},
+			func() {
+				// 错误时执行
+				errorHandled = true
+			},
 		)
 
-		if !funcCalled {
-			t.Errorf("函数未被调用")
-		}
-		if !successCalled {
-			t.Errorf("onSuccess 回调未被调用")
+		if !errorHandled {
+			t.Errorf("错误未被处理")
 		}
 	})
 
-	t.Run("函数返回错误应执行onError回调", func(t *testing.T) {
-		testErr := errors.New("测试错误")
-		var receivedErr error
+	t.Run("使用May处理成功情况", func(t *testing.T) {
+		var err error = nil
+		successHandled := false
 
-		assert.MayFunc(
-			func() error { return testErr },
-			func() {},
-			func(err error) { receivedErr = err },
+		assert.May(err == nil,
+			func() {
+				// 成功时执行
+				successHandled = true
+			},
+			func() {
+				// 错误时执行
+			},
 		)
 
-		if receivedErr != testErr {
-			t.Errorf("onError 接收到的错误 = %v, 期望 %v", receivedErr, testErr)
-		}
-	})
-}
-
-// TestMayFuncValue 测试 MayFuncValue 函数
-func TestMayFuncValue(t *testing.T) {
-	t.Run("函数返回值和nil错误应执行onSuccess回调", func(t *testing.T) {
-		var receivedValue int
-		result := assert.MayFuncValue(
-			func() (int, error) { return 42, nil },
-			func(v int) { receivedValue = v },
-			func(err error) {},
-		)
-
-		if result != 42 {
-			t.Errorf("返回值 = %v, 期望 42", result)
-		}
-		if receivedValue != 42 {
-			t.Errorf("onSuccess 接收到的值 = %v, 期望 42", receivedValue)
-		}
-	})
-
-	t.Run("函数返回值和错误应执行onError回调", func(t *testing.T) {
-		testErr := errors.New("测试错误")
-		var receivedErr error
-
-		result := assert.MayFuncValue(
-			func() (int, error) { return 42, testErr },
-			func(v int) {},
-			func(err error) { receivedErr = err },
-		)
-
-		if result != 0 {
-			t.Errorf("返回值 = %v, 期望 0", result)
-		}
-		if receivedErr != testErr {
-			t.Errorf("onError 接收到的错误 = %v, 期望 %v", receivedErr, testErr)
+		if !successHandled {
+			t.Errorf("成功情况未被处理")
 		}
 	})
 }
@@ -367,10 +263,10 @@ func BenchmarkMayTrue(b *testing.B) {
 	}
 }
 
-// BenchmarkMayValue 性能测试
-func BenchmarkMayValue(b *testing.B) {
+// BenchmarkMayFalse 性能测试
+func BenchmarkMayFalse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = assert.MayValue(42, nil, func(v int) {}, func(err error) {})
+		assert.MayFalse(false, func() {})
 	}
 }
 

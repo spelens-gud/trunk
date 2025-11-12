@@ -206,13 +206,13 @@ func (l *mockLogger) Errorf(template string, args ...any) {
 	}
 }
 
-// TestSetLogger 测试日志记录器设置
-func TestSetLogger(t *testing.T) {
+// TestSetErrorLogger 测试日志记录器设置
+func TestSetErrorLogger(t *testing.T) {
 	// 创建一个模拟的日志记录器
 	mock := &mockLogger{}
 
 	// 设置日志记录器
-	assert.SetLogger(mock)
+	assert.SetErrorLogger(mock)
 
 	// 测试错误记录
 	assert.ShouldCall0E(func() error {
@@ -224,10 +224,11 @@ func TestSetLogger(t *testing.T) {
 		t.Logf("注意: 日志记录器未被调用（可能是因为错误为nil或日志记录被跳过）")
 	} else {
 		t.Logf("日志记录器被调用 %d 次", mock.callCount)
+		t.Logf("最后的消息: %s", mock.lastMsg)
 	}
 
 	// 清理：重置日志记录器
-	assert.SetLogger(nil)
+	assert.SetErrorLogger(nil)
 }
 
 // 示例：演示泛型函数调用的使用
