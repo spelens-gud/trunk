@@ -37,6 +37,7 @@ var _ Registry = (*EtcdRegistry)(nil)
 
 // New 创建服务缓存
 func (s *EtcdRegistry) New() (err error) {
+	// 新建etc客户端连接配置
 	config := clientv3.Config{
 		Endpoints:   s.cnf.Hosts,
 		DialTimeout: s.cnf.GetDialTimeout(),
@@ -79,18 +80,19 @@ func (s *EtcdRegistry) Publisher(value string) error {
 	return s.putKeyWithLease(s.cnf.GetLeaseTTL())
 }
 
+// GetCacheClient 获取缓存客户端
 func (s *EtcdRegistry) GetCacheClient() *clientv3.Client {
 	return s.cli
 }
 
-// Put 创建服务
+// Put 添加服务(KV分布式缓存)
 func (s *EtcdRegistry) Put(ctx context.Context, key string, val string) (err error) {
 	s.log.Infof("put key:%s val:%s", key, val)
 	_, err = assert.ShouldValue(s.cli.Put(ctx, key, val))
 	return
 }
 
-// GetValue 获取值
+// GetValue 获取值,KV分布式缓存
 func (s *EtcdRegistry) GetValue(key string, opts ...any) string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -180,7 +182,9 @@ func (s *EtcdRegistry) ListenLeaseRespChan() {
 			}
 			if resp == nil {
 				s.log.Errorf("租约续约失败，可能需要重新注册，租约ID: %d", s.leaseID)
-				// 可以在这里触发重新注册逻辑
+				if err := s.Refresh(); err != nil {
+					s.log.Errorf("服务刷新失败: %v", err)
+				}
 				return
 			}
 			s.log.Debugf("租约续约成功，租约ID: %d, TTL: %d", resp.ID, resp.TTL)
@@ -304,7 +308,7 @@ func (s *EtcdRegistry) Watch(ctx context.Context, prefix string) interface{} {
 	return s.cli.Watch(ctx, prefix, clientv3.WithPrefix())
 }
 
-// WatchTyped 监听指定前缀的键变化（类型安全版本）
+// WatchTyped 监听指定前缀的键变化(类型安全版本)
 func (s *EtcdRegistry) WatchTyped(ctx context.Context, prefix string) clientv3.WatchChan {
 	result := s.Watch(ctx, prefix)
 	if watchChan, ok := result.(clientv3.WatchChan); ok {
