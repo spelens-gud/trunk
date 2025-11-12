@@ -37,7 +37,7 @@ func logPanic(err error, msg ...any) {
 			defaultLogger.Panicf("%v: %v", fmt.Sprint(msg...), err)
 		}
 	} else {
-		defaultLogger.Panicf("%v", err)
+		defaultLogger.Panic(err.Error(), zap.Error(err), zap.Stack("stack"))
 	}
 }
 

@@ -2,20 +2,24 @@ package assert
 
 import (
 	"fmt"
+
+	"go.uber.org/zap"
 )
 
 // logError 记录错误到日志
 func logError(err error, msg ...any) {
-	if defaultLogger != nil {
-		if len(msg) > 0 {
-			if format, ok := msg[0].(string); ok && len(msg) > 1 {
-				defaultLogger.Errorf(format+": %v", append(msg[1:], err)...)
-			} else {
-				defaultLogger.Errorf("%v: %v", fmt.Sprint(msg...), err)
-			}
+	if defaultLogger == nil {
+		return
+	}
+
+	if len(msg) > 0 {
+		if format, ok := msg[0].(string); ok && len(msg) > 1 {
+			defaultLogger.Errorf(format+": %v", append(msg[1:], err)...)
 		} else {
-			defaultLogger.Errorf("%v", err)
+			defaultLogger.Errorf("%v: %v", fmt.Sprint(msg...), err)
 		}
+	} else {
+		defaultLogger.Error(err.Error(), zap.Error(err), zap.Stack("stack"))
 	}
 }
 

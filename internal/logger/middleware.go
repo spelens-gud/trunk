@@ -52,6 +52,7 @@ func WithRecover(logger ILogger, fn func()) {
 			)
 		}
 	}()
+
 	fn()
 }
 

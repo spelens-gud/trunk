@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spelens-gud/trunk/internal/assert"
 	"github.com/spelens-gud/trunk/internal/logger"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -26,12 +27,13 @@ func newTestEtcdRegistry(t *testing.T) *EtcdRegistry {
 
 	// 创建测试用的 logger
 	logConfig := logger.DefaultConfig()
-	logConfig.Console = false // 减少测试输出噪音
-	logConfig.File = false
+	// logConfig.Console = false // 减少测试输出噪音
+	// logConfig.File = false
 	log, err := logger.NewLogger(logConfig)
 	if err != nil {
 		t.Fatalf("创建 logger 失败: %v", err)
 	}
+	assert.SetLogger(log)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

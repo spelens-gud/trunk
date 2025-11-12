@@ -66,7 +66,6 @@ func (s *EtcdRegistry) New() {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	s.log.Infof("etcd客户端创建成功，连接: %v", s.cnf.Hosts)
-	return
 }
 
 // Publisher 发布服务
@@ -199,10 +198,8 @@ func (s *EtcdRegistry) ListenLeaseRespChan() {
 
 // Close 注销服务
 func (s *EtcdRegistry) Close() {
-	s.log.Infof("开始关闭服务缓存，租约ID: %d", s.leaseID)
-
 	// 取消上下文，停止所有监听
-	assert.Then(s.cli != nil).Do(func() {
+	assert.MayTrue(s.cancel != nil, func() {
 		s.cancel()
 	})
 
@@ -211,19 +208,24 @@ func (s *EtcdRegistry) Close() {
 		return
 	}
 
-	// 销服务
-	s.Deregister()
+	// 确保租约ID不为0, 调用KV功能,不调用租赁
+	assert.MayTrue(s.leaseID != 0, func() {
+		s.log.Infof("开始关闭服务缓存，租约ID: %d", s.leaseID)
+		// 注销服务
+		s.Deregister()
 
-	// 撤销租约
-	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
-	defer cancel()
-	assert.ShouldCall2RE(s.cli.Revoke, ctx, s.leaseID, "撤销租约失败")
+		// 撤销租约(只有当租约ID不为0时才撤销)
+		ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
+		defer cancel()
+		assert.ShouldCall2RE(s.cli.Revoke, ctx, s.leaseID, "撤销租约失败")
+	})
 
 	// 关闭客户端
 	assert.ShouldCall0E(s.cli.Close, "关闭etcd客户端失败")
 
-	s.log.Infof("服务缓存关闭成功，租约ID: %d", s.leaseID)
-
+	assert.MayTrue(s.leaseID != 0, func() {
+		s.log.Infof("服务缓存关闭成功，租约ID: %d", s.leaseID)
+	})
 }
 
 // putKeyWithLease 设置租约
@@ -283,7 +285,7 @@ func (s *EtcdRegistry) Deregister() {
 }
 
 // Watch 监听指定前缀的键变化
-func (s *EtcdRegistry) Watch(ctx context.Context, prefix string) interface{} {
+func (s *EtcdRegistry) Watch(ctx context.Context, prefix string) any {
 	s.log.Infof("开始监听键变化，前缀: %s", prefix)
 	return s.cli.Watch(ctx, prefix, clientv3.WithPrefix())
 }
@@ -318,9 +320,9 @@ func (s *EtcdRegistry) WatchWithCallback(prefix string, callback func(event *cli
 				for _, event := range watchResp.Events {
 					s.log.Debugf("收到事件 - 类型: %s, Key: %s, Value: %s",
 						event.Type, string(event.Kv.Key), string(event.Kv.Value))
-					if callback != nil {
+					assert.MayTrue(callback != nil, func() {
 						callback(event)
-					}
+					})
 				}
 
 			case <-s.ctx.Done():
@@ -336,7 +338,10 @@ func (s *EtcdRegistry) Refresh() {
 	s.log.Infof("开始刷新服务注册")
 
 	// 先注销旧的服务
-	s.Deregister()
+	assert.MayTrue(s.leaseID != 0, func() {
+		s.log.Infof("开始注销服务，租约ID: %d", s.leaseID)
+		s.Deregister()
+	})
 
 	// 重新注册
 	s.putKeyWithLease(s.cnf.GetLeaseTTL())
