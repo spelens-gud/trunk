@@ -13,12 +13,13 @@ import (
 
 // ConsulRegistry consul注册中心实现
 type ConsulRegistry struct {
-	client *api.Client
-	cnf    *ConsulConfig
-	log    logger.ILogger
-	lock   sync.RWMutex
-	ctx    context.Context
-	cancel context.CancelFunc
+	client     *api.Client
+	cnf        *ConsulConfig
+	log        logger.ILogger
+	lock       sync.RWMutex
+	ctx        context.Context
+	cancel     context.CancelFunc
+	registered bool // 标记服务是否已注册
 }
 
 // 确保 ConsulRegistry 实现了 Registry 接口
@@ -90,6 +91,7 @@ func (c *ConsulRegistry) Publisher(value string) {
 
 	assert.ShouldCall1E(c.client.Agent().ServiceRegister, registration, "注册consul服务失败")
 
+	c.registered = true
 	c.log.Infof("consul服务注册成功")
 }
 
@@ -98,10 +100,16 @@ func (c *ConsulRegistry) Deregister() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	// 如果服务未注册，直接返回
+	if !c.registered {
+		return
+	}
+
 	c.log.Infof("注销consul服务: %s", c.cnf.GetServiceID())
 
 	assert.ShouldCall1E(c.client.Agent().ServiceDeregister, c.cnf.GetServiceID(), "注销consul服务失败")
 
+	c.registered = false
 	c.log.Infof("consul服务注销成功")
 }
 
@@ -110,7 +118,15 @@ func (c *ConsulRegistry) GetValue(key string, opts ...any) string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	services, _, err := c.client.Health().Service(key, "", true, nil)
+	// 默认不要求健康检查通过，因为服务刚注册时健康检查可能还未完成
+	passingOnly := false
+	if len(opts) > 0 {
+		if passing, ok := opts[0].(bool); ok {
+			passingOnly = passing
+		}
+	}
+
+	services, _, err := c.client.Health().Service(key, "", passingOnly, nil)
 	if err != nil {
 		c.log.Errorf("获取consul服务失败: %v", err)
 		return ""
@@ -118,9 +134,13 @@ func (c *ConsulRegistry) GetValue(key string, opts ...any) string {
 	if len(services) == 0 {
 		return ""
 	}
-	// 返回第一个健康的服务实例
+	// 返回第一个服务实例
 	service := services[0]
-	return fmt.Sprintf("%s:%d", service.Service.Address, service.Service.Port)
+	address := service.Service.Address
+	if address == "" {
+		address = service.Node.Address
+	}
+	return fmt.Sprintf("%s:%d", address, service.Service.Port)
 }
 
 // GetValues 获取所有服务实例
@@ -128,7 +148,15 @@ func (c *ConsulRegistry) GetValues(key string, opts ...any) interface{} {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	services, _, err := c.client.Health().Service(key, "", true, nil)
+	// 默认不要求健康检查通过，因为服务刚注册时健康检查可能还未完成
+	passingOnly := false
+	if len(opts) > 0 {
+		if passing, ok := opts[0].(bool); ok {
+			passingOnly = passing
+		}
+	}
+
+	services, _, err := c.client.Health().Service(key, "", passingOnly, nil)
 	if err != nil {
 		c.log.Errorf("获取consul服务列表失败: %v", err)
 		return nil
@@ -154,7 +182,7 @@ func (c *ConsulRegistry) Put(ctx context.Context, key string, val string) {
 func (c *ConsulRegistry) Watch(ctx context.Context, prefix string) interface{} {
 	c.log.Infof("开始监听consul服务变化: %s", prefix)
 
-	go func() {
+	go logger.WithRecover(c.log, func() {
 		var lastIndex uint64
 		for {
 			select {
@@ -166,7 +194,7 @@ func (c *ConsulRegistry) Watch(ctx context.Context, prefix string) interface{} {
 					WaitIndex: lastIndex,
 					WaitTime:  time.Minute,
 				}
-				services, meta, err := c.client.Health().Service(prefix, "", true, queryOpts)
+				services, meta, err := c.client.Health().Service(prefix, "", false, queryOpts)
 				if err != nil {
 					c.log.Errorf("监听consul服务失败: %v", err)
 					time.Sleep(time.Second)
@@ -176,7 +204,7 @@ func (c *ConsulRegistry) Watch(ctx context.Context, prefix string) interface{} {
 				c.log.Infof("consul服务变化: %v", services)
 			}
 		}
-	}()
+	})
 
 	return nil
 }
@@ -197,8 +225,9 @@ func (c *ConsulRegistry) Close() {
 
 // IsHealthy 健康检查
 func (c *ConsulRegistry) IsHealthy() bool {
-	// TODO: 实现健康检查
-	// 示例代码:
+	if c.client == nil {
+		return false
+	}
 	_, err := c.client.Agent().Self()
 	return err == nil
 }
