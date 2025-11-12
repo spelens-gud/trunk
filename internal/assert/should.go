@@ -1,119 +1,97 @@
 package assert
 
 import (
-	"errors"
 	"fmt"
-	"os"
 )
 
-// Should 断言条件应该为真，否则返回错误
-// 支持多种消息格式：
-//   - Should(true, "错误")           // 单个消息
-//   - Should(true, "错误: %v", err)  // 格式化消息
-//   - Should(true, err)              // 直接传递 error
-func Should(condition bool, msg ...any) error {
-	if condition {
-		return nil
-	}
-
-	var err error
-	// 没有消息时使用默认消息
-	if len(msg) == 0 {
-		err = errors.New("断言失败")
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-		return err
-	}
-
-	// 单个参数处理
-	if len(msg) == 1 {
-		if e, ok := msg[0].(error); ok {
-			fmt.Fprintf(os.Stderr, "%s\n", e.Error())
-			return e
-		}
-		if format, ok := msg[0].(string); ok {
-			err = errors.New(format)
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-			return err
-		}
-
-		err = fmt.Errorf("%v", msg[0])
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-		return err
-	}
-
-	// 多个参数时尝试格式化
-	if format, ok := msg[0].(string); ok {
-		err = fmt.Errorf(format, msg[1:]...)
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-		return err
-	}
-
-	// 其他情况使用 Sprint
-	err = errors.New(fmt.Sprint(msg...))
-	fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-	return err
+// ILogger 日志接口定义（避免循环依赖）
+type ILogger interface {
+	Error(msg string, fields ...any)
+	Errorf(template string, args ...any)
 }
 
-// shouldNoError 断言错误应该为 nil，否则返回错误
-func shouldNoError(err error, msg ...any) error {
+var (
+	// defaultLogger 默认日志记录器（可选）
+	defaultLogger ILogger
+)
+
+// SetLogger 设置全局日志记录器
+func SetLogger(logger ILogger) {
+	defaultLogger = logger
+}
+
+// logError 记录错误到日志
+func logError(err error, msg ...any) {
+	if defaultLogger != nil {
+		if len(msg) > 0 {
+			if format, ok := msg[0].(string); ok && len(msg) > 1 {
+				defaultLogger.Errorf(format+": %v", append(msg[1:], err)...)
+			} else {
+				defaultLogger.Errorf("%v: %v", fmt.Sprint(msg...), err)
+			}
+		} else {
+			defaultLogger.Errorf("%v", err)
+		}
+	}
+}
+
+// shouldNoError 断言错误应该为 nil，否则返回错误并记录日志
+func shouldNoError(err error, msg ...any) {
 	if err == nil {
-		return nil
+		return
 	}
 
-	var resultErr error
-	if len(msg) == 0 {
-		resultErr = fmt.Errorf("错误: %w", err)
-		fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
-		return resultErr
-	}
-
-	if len(msg) == 1 {
-		if format, ok := msg[0].(string); ok {
-			resultErr = fmt.Errorf("%s: %w", format, err)
-			fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
-			return resultErr
-		}
-
-		resultErr = fmt.Errorf("%v: %w", msg[0], err)
-		fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
-		return resultErr
-	}
-
-	if format, ok := msg[0].(string); ok {
-		resultErr = fmt.Errorf(format+": %w", append(msg[1:], err)...)
-		fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
-		return resultErr
-	}
-
-	resultErr = fmt.Errorf("%s: %w", fmt.Sprint(msg...), err)
-	fmt.Fprintf(os.Stderr, "%s\n", resultErr.Error())
-	return resultErr
+	logError(err, msg...)
 }
 
-// ShouldValue 返回值和错误，如果错误不为 nil 则包装错误信息
-// 用法: value, err := ShouldValue(someFunc())
-func ShouldValue[T any](value T, err error) (T, error) {
-	return value, shouldNoError(err)
-}
-
-// ShouldFunc 执行函数并返回其错误（可选包装）
-func ShouldFunc(f func() error, msg ...any) error {
+// ShouldCall0E 执行无参数返回error的函数
+func ShouldCall0E(f func() error, msg ...any) {
 	err := f()
-	return shouldNoError(err, msg...)
+	shouldNoError(err, msg...)
 }
 
-// ShouldFuncValue 执行函数并返回值和错误（可选包装）
-func ShouldFuncValue[T any](f func() (T, error), msg ...any) (T, error) {
+// ShouldCall0RE 执行无参数返回值和error的函数
+func ShouldCall0RE[R any](f func() (R, error), msg ...any) R {
 	value, err := f()
-	return value, shouldNoError(err, msg...)
+	shouldNoError(err, msg...)
+	return value
 }
 
-// ShouldTrue 断言条件应该为真（Should 的别名，语义更清晰）
-func ShouldTrue(condition bool, msg ...any) error {
-	return Should(condition, msg...)
+// ShouldCall1E 执行单参数返回error的函数
+func ShouldCall1E[T any](f func(T) error, arg T, msg ...any) {
+	err := f(arg)
+	shouldNoError(err, msg...)
 }
 
-// ShouldFalse 断言条件应该为假
-func ShouldFalse(condition bool, msg ...any) error {
-	return Should(!condition, msg...)
+// ShouldCall1RE 执行单参数返回值和error的函数
+func ShouldCall1RE[T any, R any](f func(T) (R, error), arg T, msg ...any) R {
+	value, err := f(arg)
+	shouldNoError(err, msg...)
+	return value
+}
+
+// ShouldCall2E 执行双参数返回error的函数
+func ShouldCall2E[T1, T2 any](f func(T1, T2) error, arg1 T1, arg2 T2, msg ...any) {
+	err := f(arg1, arg2)
+	shouldNoError(err, msg...)
+}
+
+// ShouldCall2RE 执行双参数返回值和error的函数
+func ShouldCall2RE[T1, T2, R any](f func(T1, T2) (R, error), arg1 T1, arg2 T2, msg ...any) R {
+	value, err := f(arg1, arg2)
+	shouldNoError(err, msg...)
+	return value
+}
+
+// ShouldCall3E 执行三参数返回error的函数
+func ShouldCall3E[T1, T2, T3 any](f func(T1, T2, T3) error, arg1 T1, arg2 T2, arg3 T3, msg ...any) {
+	err := f(arg1, arg2, arg3)
+	shouldNoError(err, msg...)
+}
+
+// ShouldCall3RE 执行三参数返回值和error的函数
+func ShouldCall3RE[T1, T2, T3, R any](f func(T1, T2, T3) (R, error), arg1 T1, arg2 T2, arg3 T3, msg ...any) R {
+	value, err := f(arg1, arg2, arg3)
+	shouldNoError(err, msg...)
+	return value
 }

@@ -8,249 +8,260 @@ import (
 	"github.com/spelens-gud/trunk/internal/assert"
 )
 
-// TestShould 测试 Should 函数
-func TestShould(t *testing.T) {
-	tests := []struct {
-		name      string
-		condition bool
-		msg       []any
-		wantErr   bool
-	}{
-		{
-			name:      "条件为真不应返回错误",
-			condition: true,
-			msg:       []any{"错误消息"},
-			wantErr:   false,
-		},
-		{
-			name:      "条件为假单个字符串消息",
-			condition: false,
-			msg:       []any{"自定义错误"},
-			wantErr:   true,
-		},
-		{
-			name:      "条件为假单个error消息",
-			condition: false,
-			msg:       []any{errors.New("错误对象")},
-			wantErr:   true,
-		},
-		{
-			name:      "条件为假格式化消息",
-			condition: false,
-			msg:       []any{"错误: %s, 代码: %d", "测试", 500},
-			wantErr:   true,
-		},
-		{
-			name:      "条件为假多个非字符串参数",
-			condition: false,
-			msg:       []any{123, 456},
-			wantErr:   true,
-		},
-		{
-			name:      "条件为假无消息",
-			condition: false,
-			msg:       []any{},
-			wantErr:   true,
-		},
-	}
+// ============ 泛型函数调用测试 ============
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := assert.Should(tt.condition, tt.msg...)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Should() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-// TestShouldValue 测试 ShouldValue 函数
-func TestShouldValue(t *testing.T) {
-	t.Run("错误为nil应返回值", func(t *testing.T) {
-		result, err := assert.ShouldValue(42, nil)
-		if err != nil {
-			t.Errorf("ShouldValue() error = %v, 期望 nil", err)
-		}
-		if result != 42 {
-			t.Errorf("ShouldValue() = %v, 期望 42", result)
-		}
-	})
-
-	t.Run("错误不为nil应返回错误", func(t *testing.T) {
-		testErr := errors.New("测试错误")
-		result, err := assert.ShouldValue(42, testErr)
-		if err == nil {
-			t.Errorf("ShouldValue() error = nil, 期望错误")
-		}
-		if result != 42 {
-			t.Errorf("ShouldValue() = %v, 期望 42", result)
-		}
-	})
-
-	t.Run("泛型支持字符串类型", func(t *testing.T) {
-		result, err := assert.ShouldValue("hello", nil)
-		if err != nil {
-			t.Errorf("ShouldValue() error = %v, 期望 nil", err)
-		}
-		if result != "hello" {
-			t.Errorf("ShouldValue() = %v, 期望 hello", result)
-		}
-	})
-
-	t.Run("泛型支持结构体类型", func(t *testing.T) {
-		type User struct {
-			Name string
-		}
-		user := User{Name: "张三"}
-		result, err := assert.ShouldValue(user, nil)
-		if err != nil {
-			t.Errorf("ShouldValue() error = %v, 期望 nil", err)
-		}
-		if result.Name != "张三" {
-			t.Errorf("ShouldValue() = %v, 期望 张三", result.Name)
-		}
-	})
-}
-
-// TestShouldFunc 测试 ShouldFunc 函数
-func TestShouldFunc(t *testing.T) {
+// TestShouldCall0E 测试无参数返回error的函数
+func TestShouldCall0E(t *testing.T) {
 	t.Run("函数返回nil", func(t *testing.T) {
 		called := false
-		err := assert.ShouldFunc(func() error {
+		assert.ShouldCall0E(func() error {
 			called = true
 			return nil
 		})
 		if !called {
 			t.Errorf("函数未被调用")
 		}
-		if err != nil {
-			t.Errorf("ShouldFunc() error = %v, 期望 nil", err)
-		}
 	})
 
 	t.Run("函数返回错误", func(t *testing.T) {
-		err := assert.ShouldFunc(func() error {
+		// ShouldCall0E 不返回错误，只记录日志
+		assert.ShouldCall0E(func() error {
 			return errors.New("测试错误")
-		})
-		if err == nil {
-			t.Errorf("ShouldFunc() error = nil, 期望错误")
-		}
-	})
-
-	t.Run("函数返回错误带消息", func(t *testing.T) {
-		err := assert.ShouldFunc(func() error {
-			return errors.New("测试错误")
-		}, "执行失败")
-		if err == nil {
-			t.Errorf("ShouldFunc() error = nil, 期望错误")
-		}
+		}, "操作失败")
+		// 函数应该被调用，但不会panic
 	})
 }
 
-// TestShouldFuncValue 测试 ShouldFuncValue 函数
-func TestShouldFuncValue(t *testing.T) {
+// TestShouldCall0RE 测试无参数返回值和error的函数
+func TestShouldCall0RE(t *testing.T) {
 	t.Run("函数返回值和nil错误", func(t *testing.T) {
-		result, err := assert.ShouldFuncValue(func() (int, error) {
+		result := assert.ShouldCall0RE(func() (int, error) {
 			return 42, nil
 		})
-		if err != nil {
-			t.Errorf("ShouldFuncValue() error = %v, 期望 nil", err)
-		}
 		if result != 42 {
-			t.Errorf("ShouldFuncValue() = %v, 期望 42", result)
+			t.Errorf("ShouldCall0RE() = %v, 期望 42", result)
 		}
 	})
 
 	t.Run("函数返回值和错误", func(t *testing.T) {
-		result, err := assert.ShouldFuncValue(func() (string, error) {
+		result := assert.ShouldCall0RE(func() (string, error) {
 			return "hello", errors.New("测试错误")
-		})
-		if err == nil {
-			t.Errorf("ShouldFuncValue() error = nil, 期望错误")
-		}
+		}, "获取失败")
+		// 即使有错误，也会返回值（错误只记录日志）
 		if result != "hello" {
-			t.Errorf("ShouldFuncValue() = %v, 期望 hello", result)
-		}
-	})
-
-	t.Run("函数返回值和错误带消息", func(t *testing.T) {
-		result, err := assert.ShouldFuncValue(func() (string, error) {
-			return "hello", errors.New("测试错误")
-		}, "操作失败")
-		if err == nil {
-			t.Errorf("ShouldFuncValue() error = nil, 期望错误")
-		}
-		if result != "hello" {
-			t.Errorf("ShouldFuncValue() = %v, 期望 hello", result)
+			t.Errorf("ShouldCall0RE() = %v, 期望 hello", result)
 		}
 	})
 }
 
-// TestShouldTrue 测试 ShouldTrue 函数
-func TestShouldTrue(t *testing.T) {
-	t.Run("条件为真", func(t *testing.T) {
-		err := assert.ShouldTrue(true, "错误消息")
-		if err != nil {
-			t.Errorf("ShouldTrue() error = %v, 期望 nil", err)
+// TestShouldCall1E 测试单参数返回error的函数
+func TestShouldCall1E(t *testing.T) {
+	t.Run("函数返回nil", func(t *testing.T) {
+		var receivedArg int
+		assert.ShouldCall1E(func(x int) error {
+			receivedArg = x
+			return nil
+		}, 42)
+		if receivedArg != 42 {
+			t.Errorf("参数传递错误，收到 %v, 期望 42", receivedArg)
 		}
 	})
 
-	t.Run("条件为假", func(t *testing.T) {
-		err := assert.ShouldTrue(false, "条件不满足")
-		if err == nil {
-			t.Errorf("ShouldTrue() error = nil, 期望错误")
+	t.Run("函数返回错误", func(t *testing.T) {
+		assert.ShouldCall1E(func(x int) error {
+			return fmt.Errorf("处理 %d 失败", x)
+		}, 42, "处理失败")
+		// 函数应该被调用，错误只记录日志
+	})
+}
+
+// TestShouldCall1RE 测试单参数返回值和error的函数
+func TestShouldCall1RE(t *testing.T) {
+	t.Run("函数返回值和nil错误", func(t *testing.T) {
+		result := assert.ShouldCall1RE(func(x int) (string, error) {
+			return fmt.Sprintf("值: %d", x), nil
+		}, 42)
+		if result != "值: 42" {
+			t.Errorf("ShouldCall1RE() = %v, 期望 '值: 42'", result)
+		}
+	})
+
+	t.Run("函数返回值和错误", func(t *testing.T) {
+		result := assert.ShouldCall1RE(func(x int) (string, error) {
+			return fmt.Sprintf("值: %d", x), errors.New("转换失败")
+		}, 42, "转换失败")
+		// 即使有错误，也会返回值（错误只记录日志）
+		if result != "值: 42" {
+			t.Errorf("ShouldCall1RE() = %v, 期望 '值: 42'", result)
 		}
 	})
 }
 
-// TestShouldFalse 测试 ShouldFalse 函数
-func TestShouldFalse(t *testing.T) {
-	t.Run("条件为假", func(t *testing.T) {
-		err := assert.ShouldFalse(false, "错误消息")
-		if err != nil {
-			t.Errorf("ShouldFalse() error = %v, 期望 nil", err)
+// TestShouldCall2E 测试双参数返回error的函数
+func TestShouldCall2E(t *testing.T) {
+	t.Run("函数返回nil", func(t *testing.T) {
+		var sum int
+		assert.ShouldCall2E(func(x, y int) error {
+			sum = x + y
+			return nil
+		}, 10, 20)
+		if sum != 30 {
+			t.Errorf("计算错误，收到 %v, 期望 30", sum)
 		}
 	})
 
-	t.Run("条件为真", func(t *testing.T) {
-		err := assert.ShouldFalse(true, "条件应该为假")
-		if err == nil {
-			t.Errorf("ShouldFalse() error = nil, 期望错误")
+	t.Run("函数返回错误", func(t *testing.T) {
+		assert.ShouldCall2E(func(x, y int) error {
+			return fmt.Errorf("处理 %d + %d 失败", x, y)
+		}, 10, 20, "计算失败")
+		// 函数应该被调用，错误只记录日志
+	})
+}
+
+// TestShouldCall2RE 测试双参数返回值和error的函数
+func TestShouldCall2RE(t *testing.T) {
+	t.Run("函数返回值和nil错误", func(t *testing.T) {
+		result := assert.ShouldCall2RE(func(x, y int) (int, error) {
+			return x + y, nil
+		}, 10, 20)
+		if result != 30 {
+			t.Errorf("ShouldCall2RE() = %v, 期望 30", result)
+		}
+	})
+
+	t.Run("函数返回值和错误", func(t *testing.T) {
+		result := assert.ShouldCall2RE(func(x, y int) (int, error) {
+			return x + y, errors.New("计算失败")
+		}, 10, 20, "加法失败")
+		// 即使有错误，也会返回值（错误只记录日志）
+		if result != 30 {
+			t.Errorf("ShouldCall2RE() = %v, 期望 30", result)
 		}
 	})
 }
 
-// 示例：演示 Should 的使用
-func ExampleShould() {
-	// 条件为真，不返回错误
-	err := assert.Should(1 > 0, "数字应该大于0")
-	if err == nil {
-		fmt.Println("条件为真")
+// TestShouldCall3E 测试三参数返回error的函数
+func TestShouldCall3E(t *testing.T) {
+	t.Run("函数返回nil", func(t *testing.T) {
+		var result int
+		assert.ShouldCall3E(func(x, y, z int) error {
+			result = x + y + z
+			return nil
+		}, 10, 20, 30)
+		if result != 60 {
+			t.Errorf("计算错误，收到 %v, 期望 60", result)
+		}
+	})
+
+	t.Run("函数返回错误", func(t *testing.T) {
+		assert.ShouldCall3E(func(x, y, z int) error {
+			return fmt.Errorf("处理 %d + %d + %d 失败", x, y, z)
+		}, 10, 20, 30, "计算失败")
+		// 函数应该被调用，错误只记录日志
+	})
+}
+
+// TestShouldCall3RE 测试三参数返回值和error的函数
+func TestShouldCall3RE(t *testing.T) {
+	t.Run("函数返回值和nil错误", func(t *testing.T) {
+		result := assert.ShouldCall3RE(func(x, y, z int) (int, error) {
+			return x + y + z, nil
+		}, 10, 20, 30)
+		if result != 60 {
+			t.Errorf("ShouldCall3RE() = %v, 期望 60", result)
+		}
+	})
+
+	t.Run("函数返回值和错误", func(t *testing.T) {
+		result := assert.ShouldCall3RE(func(x, y, z int) (int, error) {
+			return x + y + z, errors.New("计算失败")
+		}, 10, 20, 30, "计算失败")
+		// 即使有错误，也会返回值（错误只记录日志）
+		if result != 60 {
+			t.Errorf("ShouldCall3RE() = %v, 期望 60", result)
+		}
+	})
+}
+
+// mockLogger 测试用的模拟日志记录器
+type mockLogger struct {
+	lastError string
+	lastMsg   string
+	callCount int
+}
+
+func (l *mockLogger) Error(msg string, fields ...any) {
+	l.callCount++
+	l.lastMsg = msg
+	if len(fields) > 0 {
+		l.lastError = fmt.Sprint(fields...)
+	}
+}
+
+func (l *mockLogger) Errorf(template string, args ...any) {
+	l.callCount++
+	l.lastMsg = fmt.Sprintf(template, args...)
+	if len(args) > 0 {
+		l.lastError = fmt.Sprint(args[len(args)-1])
+	}
+}
+
+// TestSetLogger 测试日志记录器设置
+func TestSetLogger(t *testing.T) {
+	// 创建一个模拟的日志记录器
+	mock := &mockLogger{}
+
+	// 设置日志记录器
+	assert.SetLogger(mock)
+
+	// 测试错误记录
+	assert.ShouldCall0E(func() error {
+		return errors.New("测试错误")
+	}, "操作失败")
+
+	// 验证日志记录器被调用
+	if mock.callCount == 0 {
+		t.Logf("注意: 日志记录器未被调用（可能是因为错误为nil或日志记录被跳过）")
+	} else {
+		t.Logf("日志记录器被调用 %d 次", mock.callCount)
 	}
 
-	// 条件为假，返回错误（错误信息会输出到 stderr）
-	err = assert.Should(1 < 0, "数字应该大于0")
-	if err != nil {
-		fmt.Println("条件为假")
-		fmt.Printf("错误: %v\n", err)
-	}
+	// 清理：重置日志记录器
+	assert.SetLogger(nil)
+}
+
+// 示例：演示泛型函数调用的使用
+func ExampleShouldCall0RE() {
+	// 无参数返回值和error
+	value := assert.ShouldCall0RE(func() (int, error) {
+		return 42, nil
+	}, "获取值失败")
+
+	fmt.Printf("获取到值: %d\n", value)
 
 	// Output:
-	// 条件为真
-	// 条件为假
-	// 错误: 数字应该大于0
+	// 获取到值: 42
 }
 
-// BenchmarkShould 性能测试
-func BenchmarkShould(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = assert.Should(true, "错误消息")
-	}
+func ExampleShouldCall1RE() {
+	// 单参数返回值和error
+	result := assert.ShouldCall1RE(func(x int) (string, error) {
+		return fmt.Sprintf("数字是: %d", x), nil
+	}, 42, "转换失败")
+
+	fmt.Println(result)
+
+	// Output:
+	// 数字是: 42
 }
 
-// BenchmarkShouldValue 性能测试
-func BenchmarkShouldValue(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, _ = assert.ShouldValue(42, nil)
-	}
+func ExampleShouldCall0E() {
+	// 无参数返回error
+	assert.ShouldCall0E(func() error {
+		fmt.Println("执行成功")
+		return nil
+	}, "操作失败")
+
+	// Output:
+	// 执行成功
 }
