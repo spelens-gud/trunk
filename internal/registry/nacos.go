@@ -9,6 +9,7 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/model"
 	"github.com/nacos-group/nacos-sdk-go/v2/vo"
+	"github.com/spelens-gud/trunk/internal/assert"
 
 	"sync"
 
@@ -54,18 +55,10 @@ func (n *NacosRegistry) New() {
 		clientConfig.Password = n.cnf.Password
 	}
 
-	namingClient, err := clients.NewNamingClient(
-		vo.NacosClientParam{
-			ClientConfig:  &clientConfig,
-			ServerConfigs: serverConfigs,
-		},
-	)
-	if err != nil {
-		n.log.Errorf("创建nacos客户端失败: %v", err)
-		return
-	}
-
-	n.namingClient = namingClient
+	n.namingClient = assert.ShouldCall1RE(clients.NewNamingClient, vo.NacosClientParam{
+		ClientConfig:  &clientConfig,
+		ServerConfigs: serverConfigs,
+	}, "创建nacos客户端失败")
 
 	n.log.Infof("初始化nacos注册中心，服务器: %v", n.cnf.Hosts)
 }
@@ -77,7 +70,7 @@ func (n *NacosRegistry) Publisher(value string) {
 
 	n.log.Infof("注册nacos服务: %s", n.cnf.ServiceName)
 
-	success, err := n.namingClient.RegisterInstance(vo.RegisterInstanceParam{
+	assert.ShouldCall1RE(n.namingClient.RegisterInstance, vo.RegisterInstanceParam{
 		Ip:          n.cnf.IP,
 		Port:        n.cnf.ServicePort,
 		ServiceName: n.cnf.ServiceName,
@@ -88,12 +81,7 @@ func (n *NacosRegistry) Publisher(value string) {
 		Healthy:     n.cnf.IsHealthy(),
 		Ephemeral:   n.cnf.IsEphemeral(),
 		Metadata:    n.cnf.Metadata,
-	})
-
-	if err != nil || !success {
-		n.log.Errorf("注册nacos服务失败: %v", err)
-		return
-	}
+	}, "注册nacos服务失败")
 
 	n.log.Infof("nacos服务注册成功")
 }
@@ -105,54 +93,44 @@ func (n *NacosRegistry) Deregister() {
 
 	n.log.Infof("注销nacos服务: %s", n.cnf.ServiceName)
 
-	success, err := n.namingClient.DeregisterInstance(vo.DeregisterInstanceParam{
+	assert.ShouldCall1RE(n.namingClient.DeregisterInstance, vo.DeregisterInstanceParam{
 		Ip:          n.cnf.IP,
 		Port:        n.cnf.ServicePort,
 		ServiceName: n.cnf.ServiceName,
 		GroupName:   n.cnf.GetGroupName(),
 		Cluster:     n.cnf.GetClusterName(),
 		Ephemeral:   n.cnf.IsEphemeral(),
-	})
-	if err != nil || !success {
-		n.log.Errorf("注销nacos服务失败: %v", err)
-		return
-	}
+	}, "注销nacos服务失败")
 
 	n.log.Infof("nacos服务注销成功")
 }
 
 // GetValue 获取单个服务实例
-func (n *NacosRegistry) GetValue(key string, opts ...interface{}) string {
+func (n *NacosRegistry) GetValue(key string, opts ...any) string {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	instance, err := n.namingClient.SelectOneHealthyInstance(vo.SelectOneHealthInstanceParam{
+	instance := assert.ShouldCall1RE(n.namingClient.SelectOneHealthyInstance, vo.SelectOneHealthInstanceParam{
 		ServiceName: key,
 		GroupName:   n.cnf.GetGroupName(),
 		Clusters:    []string{n.cnf.GetClusterName()},
-	})
-	if err != nil {
-		n.log.Errorf("获取nacos服务实例失败: %v", err)
-		return ""
-	}
+	}, "获取nacos服务实例失败")
+
 	return fmt.Sprintf("%s:%d", instance.Ip, instance.Port)
 }
 
 // GetValues 获取所有服务实例
-func (n *NacosRegistry) GetValues(key string, opts ...interface{}) interface{} {
+func (n *NacosRegistry) GetValues(key string, opts ...any) any {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	instances, err := n.namingClient.SelectInstances(vo.SelectInstancesParam{
+	instances := assert.ShouldCall1RE(n.namingClient.SelectInstances, vo.SelectInstancesParam{
 		ServiceName: key,
 		GroupName:   n.cnf.GetGroupName(),
 		Clusters:    []string{n.cnf.GetClusterName()},
 		HealthyOnly: true,
-	})
-	if err != nil {
-		n.log.Errorf("获取nacos服务实例列表失败: %v", err)
-		return nil
-	}
+	}, "获取nacos服务实例列表失败")
+
 	return instances
 }
 
@@ -163,10 +141,10 @@ func (n *NacosRegistry) Put(ctx context.Context, key string, val string) {
 }
 
 // Watch 监听服务变化
-func (n *NacosRegistry) Watch(ctx context.Context, prefix string) interface{} {
+func (n *NacosRegistry) Watch(ctx context.Context, prefix string) any {
 	n.log.Infof("开始监听nacos服务变化: %s", prefix)
 
-	err := n.namingClient.Subscribe(&vo.SubscribeParam{
+	assert.ShouldCall1E(n.namingClient.Subscribe, &vo.SubscribeParam{
 		ServiceName: prefix,
 		GroupName:   n.cnf.GetGroupName(),
 		Clusters:    []string{n.cnf.GetClusterName()},
@@ -177,10 +155,7 @@ func (n *NacosRegistry) Watch(ctx context.Context, prefix string) interface{} {
 			}
 			n.log.Infof("nacos服务变化: %v", services)
 		},
-	})
-	if err != nil {
-		n.log.Errorf("订阅nacos服务失败: %v", err)
-	}
+	}, "订阅nacos服务失败")
 
 	return nil
 }
@@ -189,9 +164,9 @@ func (n *NacosRegistry) Watch(ctx context.Context, prefix string) interface{} {
 func (n *NacosRegistry) Close() {
 	n.log.Infof("关闭nacos注册中心")
 
-	if n.cancel != nil {
+	assert.MayTrue(n.cancel != nil, func() {
 		n.cancel()
-	}
+	})
 
 	// 注销服务
 	n.Deregister()
