@@ -2,7 +2,6 @@ package registry
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -36,7 +35,7 @@ type EtcdRegistry struct {
 var _ Registry = (*EtcdRegistry)(nil)
 
 // New 创建服务缓存
-func (s *EtcdRegistry) New() (err error) {
+func (s *EtcdRegistry) New() {
 	// 新建etc客户端连接配置
 	config := clientv3.Config{
 		Endpoints:   s.cnf.Hosts,
@@ -54,7 +53,7 @@ func (s *EtcdRegistry) New() (err error) {
 	assert.Then(s.cnf.HasTLS()).Do(func() {
 		tlsConfig, err := s.cnf.LoadTLSConfig()
 		if err != nil {
-			s.log.Errorf("TLS 加载配置文件错误")
+			s.log.Errorf("TLS加载配置文件错误")
 			return
 		}
 		config.TLS = tlsConfig
@@ -63,7 +62,7 @@ func (s *EtcdRegistry) New() (err error) {
 
 	s.key = s.cnf.Key
 
-	s.cli, err = assert.ShouldValue(clientv3.New(config))
+	s.cli = assert.ShouldCall1RE(clientv3.New, config, "新建etcd客户端失败")
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
 	s.log.Infof("etcd客户端创建成功，连接: %v", s.cnf.Hosts)
@@ -71,13 +70,13 @@ func (s *EtcdRegistry) New() (err error) {
 }
 
 // Publisher 发布服务
-func (s *EtcdRegistry) Publisher(value string) error {
+func (s *EtcdRegistry) Publisher(value string) {
 	s.lock.Lock()
 	s.val = value
 	s.lock.Unlock()
 
 	// 使用配置的租约TTL
-	return s.putKeyWithLease(s.cnf.GetLeaseTTL())
+	s.putKeyWithLease(s.cnf.GetLeaseTTL())
 }
 
 // GetCacheClient 获取缓存客户端
@@ -86,10 +85,13 @@ func (s *EtcdRegistry) GetCacheClient() *clientv3.Client {
 }
 
 // Put 添加服务(KV分布式缓存)
-func (s *EtcdRegistry) Put(ctx context.Context, key string, val string) (err error) {
+func (s *EtcdRegistry) Put(ctx context.Context, key string, val string) {
 	s.log.Infof("put key:%s val:%s", key, val)
-	_, err = assert.ShouldValue(s.cli.Put(ctx, key, val))
-	return
+	_, err := s.cli.Put(ctx, key, val)
+	if err != nil {
+		s.log.Errorf(err.Error())
+		return
+	}
 }
 
 // GetValue 获取值,KV分布式缓存
@@ -108,7 +110,7 @@ func (s *EtcdRegistry) GetValue(key string, opts ...any) string {
 		}
 	}
 
-	resp, err := assert.ShouldValue(s.cli.Get(ctx, key, etcdOpts...))
+	resp, err := s.cli.Get(ctx, key, etcdOpts...)
 	if err != nil {
 		s.log.Errorf("获取值失败: %v", err)
 		return ""
@@ -137,7 +139,7 @@ func (s *EtcdRegistry) GetValues(key string, opts ...any) any {
 		}
 	}
 
-	resp, err := assert.ShouldValue(s.cli.Get(ctx, key, etcdOpts...))
+	resp, err := s.cli.Get(ctx, key, etcdOpts...)
 	if err != nil {
 		s.log.Errorf("获取值失败: %v", err)
 		return nil
@@ -182,9 +184,8 @@ func (s *EtcdRegistry) ListenLeaseRespChan() {
 			}
 			if resp == nil {
 				s.log.Errorf("租约续约失败，可能需要重新注册，租约ID: %d", s.leaseID)
-				if err := s.Refresh(); err != nil {
-					s.log.Errorf("服务刷新失败: %v", err)
-				}
+
+				s.Refresh()
 				return
 			}
 			s.log.Debugf("租约续约成功，租约ID: %d, TTL: %d", resp.ID, resp.TTL)
@@ -197,7 +198,7 @@ func (s *EtcdRegistry) ListenLeaseRespChan() {
 }
 
 // Close 注销服务
-func (s *EtcdRegistry) Close() error {
+func (s *EtcdRegistry) Close() {
 	s.log.Infof("开始关闭服务缓存，租约ID: %d", s.leaseID)
 
 	// 取消上下文，停止所有监听
@@ -207,46 +208,31 @@ func (s *EtcdRegistry) Close() error {
 
 	if s.cli == nil {
 		s.log.Errorf("etcd v3客户端为空")
-		return errors.New("etcd v3客户端为空")
+		return
 	}
 
-	// 先注销服务
-	if err := assert.ShouldFunc(s.Deregister, "注销服务失败"); err != nil {
-		return err
-	}
+	// 销服务
+	s.Deregister()
 
 	// 撤销租约
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
-
-	if _, err := s.cli.Revoke(ctx, s.leaseID); err != nil {
-		s.log.Errorf("撤销租约失败: %v", err)
-	} else {
-		s.log.Infof("撤销租约成功，租约ID: %d", s.leaseID)
-	}
+	assert.ShouldCall2RE(s.cli.Revoke, ctx, s.leaseID, "撤销租约失败")
 
 	// 关闭客户端
-	if err := s.cli.Close(); err != nil {
-		s.log.Errorf("关闭etcd客户端失败: %v", err)
-		return err
-	}
+	assert.ShouldCall0E(s.cli.Close, "关闭etcd客户端失败")
 
 	s.log.Infof("服务缓存关闭成功，租约ID: %d", s.leaseID)
 
-	return nil
 }
 
 // putKeyWithLease 设置租约
-func (s *EtcdRegistry) putKeyWithLease(lease int64) error {
+func (s *EtcdRegistry) putKeyWithLease(lease int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
 	defer cancel()
 
 	// 创建一个新的租约，并设置ttl时间
-	resp, err := s.cli.Grant(ctx, lease)
-	if err != nil {
-		s.log.Errorf("创建租约失败: %v", err)
-		return fmt.Errorf("创建租约失败: %w", err)
-	}
+	resp := assert.ShouldCall2RE(s.cli.Grant, ctx, lease, "创建租约失败")
 
 	s.lock.RLock()
 	val := s.val
@@ -256,18 +242,14 @@ func (s *EtcdRegistry) putKeyWithLease(lease int64) error {
 	serviceKey := fmt.Sprintf("%s/%d", s.key, resp.ID)
 	if _, err := s.cli.Put(ctx, serviceKey, val, clientv3.WithLease(resp.ID)); err != nil {
 		s.log.Errorf("注册服务失败: %v", err)
-		return fmt.Errorf("注册服务失败: %w", err)
+		return
 	}
 
 	// 设置续租 定期发送续约请求
 	// KeepAlive使给定的租约永远有效。如果发布到通道的keepalive响应没有立即被使用，
 	// 则租约客户端将至少每秒钟继续向etcd服务器发送保持活动请求，直到获取最新的响应为止。
 	// registry client会自动发送ttl到etcd server，从而保证该租约一直有效
-	leaseRespChan, err := s.cli.KeepAlive(s.ctx, resp.ID)
-	if err != nil {
-		s.log.Errorf("启动租约续约失败: %v", err)
-		return fmt.Errorf("启动租约续约失败: %w", err)
-	}
+	leaseRespChan := assert.ShouldCall2RE(s.cli.KeepAlive, s.ctx, resp.ID, "启动租约续约失败")
 
 	s.lock.Lock()
 	s.leaseID = resp.ID
@@ -275,18 +257,17 @@ func (s *EtcdRegistry) putKeyWithLease(lease int64) error {
 	s.lock.Unlock()
 
 	s.log.Infof("服务注册成功 - Key: %s, Value: %s, 租约ID: %d, TTL: %d秒", serviceKey, val, resp.ID, lease)
-	return nil
 }
 
 // Deregister 注销服务
-func (s *EtcdRegistry) Deregister() error {
+func (s *EtcdRegistry) Deregister() {
 	s.lock.RLock()
 	leaseID := s.leaseID
 	s.lock.RUnlock()
 
 	if leaseID == 0 {
 		s.log.Warnf("租约ID为0，无需注销")
-		return nil
+		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultContextTimeout)
@@ -295,11 +276,10 @@ func (s *EtcdRegistry) Deregister() error {
 	key := fmt.Sprintf("%s/%d", s.key, leaseID)
 	if _, err := s.cli.Delete(ctx, key); err != nil {
 		s.log.Errorf("注销服务失败，Key: %s, 错误: %v", key, err)
-		return fmt.Errorf("注销服务失败: %w", err)
+		return
 	}
 
 	s.log.Infof("服务注销成功，Key: %s", key)
-	return nil
 }
 
 // Watch 监听指定前缀的键变化
@@ -352,22 +332,15 @@ func (s *EtcdRegistry) WatchWithCallback(prefix string, callback func(event *cli
 }
 
 // Refresh 刷新服务注册(重新注册)
-func (s *EtcdRegistry) Refresh() error {
+func (s *EtcdRegistry) Refresh() {
 	s.log.Infof("开始刷新服务注册")
 
 	// 先注销旧的服务
-	if err := s.Deregister(); err != nil {
-		s.log.Warnf("注销旧服务失败: %v", err)
-	}
+	s.Deregister()
 
 	// 重新注册
-	if err := s.putKeyWithLease(s.cnf.GetLeaseTTL()); err != nil {
-		s.log.Errorf("重新注册服务失败: %v", err)
-		return err
-	}
-
-	s.log.Infof("服务刷新成功")
-	return nil
+	s.putKeyWithLease(s.cnf.GetLeaseTTL())
+	s.log.Infof("刷新服务注册成功")
 }
 
 // IsHealthy 检查服务是否健康
@@ -380,6 +353,6 @@ func (s *EtcdRegistry) IsHealthy() bool {
 	defer cancel()
 
 	// 尝试获取一个键来测试连接
-	_, err := assert.ShouldValue(s.cli.Get(ctx, s.key, clientv3.WithLimit(1)))
+	_, err := s.cli.Get(ctx, s.key, clientv3.WithLimit(1))
 	return err == nil
 }
