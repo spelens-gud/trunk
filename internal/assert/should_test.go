@@ -183,54 +183,6 @@ func TestShouldCall3RE(t *testing.T) {
 	})
 }
 
-// mockLogger 测试用的模拟日志记录器
-type mockLogger struct {
-	lastError string
-	lastMsg   string
-	callCount int
-}
-
-func (l *mockLogger) Error(msg string, fields ...any) {
-	l.callCount++
-	l.lastMsg = msg
-	if len(fields) > 0 {
-		l.lastError = fmt.Sprint(fields...)
-	}
-}
-
-func (l *mockLogger) Errorf(template string, args ...any) {
-	l.callCount++
-	l.lastMsg = fmt.Sprintf(template, args...)
-	if len(args) > 0 {
-		l.lastError = fmt.Sprint(args[len(args)-1])
-	}
-}
-
-// TestSetErrorLogger 测试日志记录器设置
-func TestSetErrorLogger(t *testing.T) {
-	// 创建一个模拟的日志记录器
-	mock := &mockLogger{}
-
-	// 设置日志记录器
-	assert.SetErrorLogger(mock)
-
-	// 测试错误记录
-	assert.ShouldCall0E(func() error {
-		return errors.New("测试错误")
-	}, "操作失败")
-
-	// 验证日志记录器被调用
-	if mock.callCount == 0 {
-		t.Logf("注意: 日志记录器未被调用（可能是因为错误为nil或日志记录被跳过）")
-	} else {
-		t.Logf("日志记录器被调用 %d 次", mock.callCount)
-		t.Logf("最后的消息: %s", mock.lastMsg)
-	}
-
-	// 清理：重置日志记录器
-	assert.SetErrorLogger(nil)
-}
-
 // 示例：演示泛型函数调用的使用
 func ExampleShouldCall0RE() {
 	// 无参数返回值和error

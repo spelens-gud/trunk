@@ -4,33 +4,17 @@ import (
 	"fmt"
 )
 
-// IErrorLogger 日志接口定义（避免循环依赖）
-type IErrorLogger interface {
-	Error(msg string, fields ...any)
-	Errorf(template string, args ...any)
-}
-
-var (
-	// defaultLogger 默认日志记录器（可选）
-	defaultErrorLogger IErrorLogger
-)
-
-// SetErrorLogger 设置全局日志记录器
-func SetErrorLogger(logger IErrorLogger) {
-	defaultErrorLogger = logger
-}
-
 // logError 记录错误到日志
 func logError(err error, msg ...any) {
-	if defaultErrorLogger != nil {
+	if defaultLogger != nil {
 		if len(msg) > 0 {
 			if format, ok := msg[0].(string); ok && len(msg) > 1 {
-				defaultErrorLogger.Errorf(format+": %v", append(msg[1:], err)...)
+				defaultLogger.Errorf(format+": %v", append(msg[1:], err)...)
 			} else {
-				defaultErrorLogger.Errorf("%v: %v", fmt.Sprint(msg...), err)
+				defaultLogger.Errorf("%v: %v", fmt.Sprint(msg...), err)
 			}
 		} else {
-			defaultErrorLogger.Errorf("%v", err)
+			defaultLogger.Errorf("%v", err)
 		}
 	}
 }

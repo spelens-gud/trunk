@@ -1,37 +1,43 @@
 package assert
 
-import "fmt"
+import (
+	"fmt"
 
-// IPanicLogger 日志接口定义（避免循环依赖）
-type IPanicLogger interface {
-	Panic(msg string, fields ...any)
+	"go.uber.org/zap"
+)
+
+// ILogger 日志接口定义（避免循环依赖）
+type ILogger interface {
+	Panic(msg string, fields ...zap.Field)
 	Panicf(template string, args ...any)
+	Error(msg string, fields ...zap.Field)
+	Errorf(template string, args ...any)
 }
 
 var (
 	// defaultLogger 默认日志记录器（可选）
-	defaultPanicLogger IPanicLogger
+	defaultLogger ILogger
 )
 
-// SetPanicLogger 设置全局日志记录器
-func SetPanicLogger(logger IPanicLogger) {
-	defaultPanicLogger = logger
+// SetLogger 设置全局日志记录器
+func SetLogger(logger ILogger) {
+	defaultLogger = logger
 }
 
 // logError 记录错误到日志
 func logPanic(err error, msg ...any) {
-	if defaultPanicLogger == nil {
+	if defaultLogger == nil {
 		return
 	}
 
 	if len(msg) > 0 {
 		if format, ok := msg[0].(string); ok && len(msg) > 1 {
-			defaultPanicLogger.Panicf(format+": %v", append(msg[1:], err)...)
+			defaultLogger.Panicf(format+": %v", append(msg[1:], err)...)
 		} else {
-			defaultPanicLogger.Panicf("%v: %v", fmt.Sprint(msg...), err)
+			defaultLogger.Panicf("%v: %v", fmt.Sprint(msg...), err)
 		}
 	} else {
-		defaultPanicLogger.Panicf("%v", err)
+		defaultLogger.Panicf("%v", err)
 	}
 }
 

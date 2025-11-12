@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/spelens-gud/trunk/internal/assert"
+	"go.uber.org/zap"
 )
 
 // TestMustNoError 测试 mustNoError 的行为（通过 MustCall 函数间接测试）
@@ -267,28 +268,41 @@ func TestMustCall3RE(t *testing.T) {
 }
 
 // mockPanicLogger 测试用的模拟panic日志记录器
-type mockPanicLogger struct {
+type mockLogger struct {
 	lastMsg   string
+	lastError string
 	callCount int
 }
 
-func (l *mockPanicLogger) Panic(msg string, fields ...any) {
+func (l *mockLogger) Panic(msg string, fields ...zap.Field) {
 	l.callCount++
 	l.lastMsg = msg
 }
 
-func (l *mockPanicLogger) Panicf(template string, args ...any) {
+func (l *mockLogger) Panicf(template string, args ...any) {
 	l.callCount++
 	l.lastMsg = fmt.Sprintf(template, args...)
+}
+func (l *mockLogger) Error(msg string, fields ...zap.Field) {
+	l.callCount++
+	l.lastMsg = msg
+}
+
+func (l *mockLogger) Errorf(template string, args ...any) {
+	l.callCount++
+	l.lastMsg = fmt.Sprintf(template, args...)
+	if len(args) > 0 {
+		l.lastError = fmt.Sprint(args[len(args)-1])
+	}
 }
 
 // TestSetPanicLogger 测试日志记录器设置
 func TestSetPanicLogger(t *testing.T) {
 	// 创建一个模拟的日志记录器
-	mock := &mockPanicLogger{}
+	mock := &mockLogger{}
 
 	// 设置日志记录器
-	assert.SetPanicLogger(mock)
+	assert.SetLogger(mock)
 
 	// 测试panic时的日志记录
 	defer func() {
@@ -299,7 +313,7 @@ func TestSetPanicLogger(t *testing.T) {
 			}
 		}
 		// 清理：重置日志记录器
-		assert.SetPanicLogger(nil)
+		assert.SetLogger(nil)
 	}()
 
 	assert.MustCall0E(func() error {
