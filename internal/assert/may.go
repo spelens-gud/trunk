@@ -29,51 +29,6 @@ func MayFalse(condition bool, callback func()) {
 	}
 }
 
-// mayNoError 当错误为 nil 时执行 onSuccess 回调，否则执行 onError 回调
-func mayNoError(err error, onSuccess func(), onError func(error)) {
-	if err == nil {
-		if onSuccess != nil {
-			onSuccess()
-		}
-	} else {
-		if onError != nil {
-			onError(err)
-		}
-	}
-}
-
-// MayValue 根据错误状态执行回调并返回值
-// 如果错误为 nil，执行 onSuccess 回调（如果提供）并返回值
-// 如果错误不为 nil，执行 onError 回调（如果提供）并返回零值
-func MayValue[T any](value T, err error, onSuccess func(T), onError func(error)) T {
-	if err == nil {
-		if onSuccess != nil {
-			onSuccess(value)
-		}
-		return value
-	}
-
-	if onError != nil {
-		onError(err)
-	}
-	var zero T
-
-	return zero
-}
-
-// MayFunc 执行函数，根据返回的错误状态执行相应回调
-func MayFunc(f func() error, onSuccess func(), onError func(error)) {
-	err := f()
-	mayNoError(err, onSuccess, onError)
-}
-
-// MayFuncValue 执行函数，根据返回的错误状态执行相应回调并返回值
-func MayFuncValue[T any](f func() (T, error), onSuccess func(T), onError func(error)) T {
-	value, err := f()
-
-	return MayValue(value, err, onSuccess, onError)
-}
-
 // MayElse 提供链式调用的条件执行
 type MayElse struct {
 	condition bool

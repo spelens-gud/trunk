@@ -2,86 +2,96 @@ package assert
 
 import "fmt"
 
-// Must 断言条件必须为真，否则触发 panic
-// 支持多种消息格式：
-//   - Must(true, "错误")           // 单个消息
-//   - Must(true, "错误: %v", err)  // 格式化消息
-//   - Must(true, err)              // 直接传递 error
-func Must(condition bool, msg ...any) {
-	if condition {
+// IPanicLogger 日志接口定义（避免循环依赖）
+type IPanicLogger interface {
+	Panic(msg string, fields ...any)
+	Panicf(template string, args ...any)
+}
+
+var (
+	// defaultLogger 默认日志记录器（可选）
+	defaultPanicLogger IPanicLogger
+)
+
+// SetPanicLogger 设置全局日志记录器
+func SetPanicLogger(logger IPanicLogger) {
+	defaultPanicLogger = logger
+}
+
+// logError 记录错误到日志
+func logPanic(err error, msg ...any) {
+	if defaultPanicLogger == nil {
 		return
 	}
 
-	// 没有消息时使用默认消息
-	if len(msg) == 0 {
-		panic("断言失败")
+	if len(msg) > 0 {
+		if format, ok := msg[0].(string); ok && len(msg) > 1 {
+			defaultPanicLogger.Panicf(format+": %v", append(msg[1:], err)...)
+		} else {
+			defaultPanicLogger.Panicf("%v: %v", fmt.Sprint(msg...), err)
+		}
+	} else {
+		defaultPanicLogger.Panicf("%v", err)
 	}
-
-	// 单个参数直接 panic
-	if len(msg) == 1 {
-		panic(msg[0])
-	}
-
-	// 多个参数时尝试格式化
-	if format, ok := msg[0].(string); ok {
-		panic(fmt.Sprintf(format, msg[1:]...))
-	}
-
-	// 其他情况使用 Sprint
-	panic(fmt.Sprint(msg...))
 }
 
-// MustNoError 断言错误必须为 nil，否则触发 panic
+// mustNoError 断言错误必须为 nil，否则触发 panic
 func mustNoError(err error, msg ...any) {
 	if err == nil {
 		return
 	}
 
-	if len(msg) == 0 {
-		panic(err)
-	}
-
-	if len(msg) == 1 {
-		if format, ok := msg[0].(string); ok {
-			panic(fmt.Sprintf("%s: %v", format, err))
-		}
-		panic(fmt.Sprintf("%v: %v", msg[0], err))
-	}
-
-	if format, ok := msg[0].(string); ok {
-		panic(fmt.Sprintf(format+": %v", append(msg[1:], err)...))
-	}
-	panic(fmt.Sprintf("%v: %v", fmt.Sprint(msg...), err))
+	logPanic(err, msg...)
 }
 
-// MustValue 返回值并断言错误必须为 nil
-// 用法: value := MustValue(someFunc())
-func MustValue[T any](value T, err error) T {
-	mustNoError(err)
-
-	return value
-}
-
-// MustFunc 执行函数并断言其返回的错误必须为 nil
-func MustFunc(f func() error, msg ...any) {
+// MustCall0E 执行无参数返回error的函数，错误不为nil时panic
+func MustCall0E(f func() error, msg ...any) {
 	err := f()
 	mustNoError(err, msg...)
 }
 
-// MustFuncValue 执行函数并返回其返回值并断言其错误必须为 nil
-func MustFuncValue[T any](f func() (T, error), msg ...any) T {
+// MustCall0RE 执行无参数返回值和error的函数，错误不为nil时panic
+func MustCall0RE[R any](f func() (R, error), msg ...any) R {
 	value, err := f()
 	mustNoError(err, msg...)
-
 	return value
 }
 
-// MustTrue 断言条件必须为真(Must 的别名，语义更清晰)
-func MustTrue(condition bool, msg ...any) {
-	Must(condition, msg...)
+// MustCall1E 执行单参数返回error的函数，错误不为nil时panic
+func MustCall1E[T any](f func(T) error, arg T, msg ...any) {
+	err := f(arg)
+	mustNoError(err, msg...)
 }
 
-// MustFalse 断言条件必须为假
-func MustFalse(condition bool, msg ...any) {
-	Must(!condition, msg...)
+// MustCall1RE 执行单参数返回值和error的函数，错误不为nil时panic
+func MustCall1RE[T any, R any](f func(T) (R, error), arg T, msg ...any) R {
+	value, err := f(arg)
+	mustNoError(err, msg...)
+	return value
+}
+
+// MustCall2E 执行双参数返回error的函数，错误不为nil时panic
+func MustCall2E[T1, T2 any](f func(T1, T2) error, arg1 T1, arg2 T2, msg ...any) {
+	err := f(arg1, arg2)
+	mustNoError(err, msg...)
+}
+
+// MustCall2RE 执行双参数返回值和error的函数，错误不为nil时panic
+func MustCall2RE[T1, T2, R any](f func(T1, T2) (R, error), arg1 T1, arg2 T2, msg ...any) R {
+	value, err := f(arg1, arg2)
+	mustNoError(err, msg...)
+	return value
+}
+
+// MustCall3E 执行三参数返回error的函数，错误不为nil时panic
+func MustCall3E[T1, T2, T3 any](f func(T1, T2, T3) error, arg1 T1, arg2 T2, arg3 T3, msg ...any) {
+	err := f(arg1, arg2, arg3)
+	mustNoError(err, msg...)
+}
+
+// MustCall3RE 执行三参数返回值和error的函数，错误不为nil时panic
+func MustCall3RE[T1, T2, T3, R any](f func(T1, T2, T3) (R, error), arg1 T1, arg2 T2, arg3 T3, msg ...any) R {
+	value, err := f(arg1, arg2, arg3)
+	mustNoError(err, msg...)
+	return value
 }
