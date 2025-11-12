@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/spelens-gud/trunk/internal/assert"
 	"github.com/spelens-gud/trunk/internal/logger"
 )
 
@@ -32,11 +33,11 @@ func (c *ConsulRegistry) New() {
 	config.Scheme = c.cnf.GetScheme()
 	config.Datacenter = c.cnf.Datacenter
 
-	if c.cnf.HasToken() {
+	assert.MayTrue(c.cnf.HasToken(), func() {
 		config.Token = c.cnf.Token
-	}
+	})
 
-	if c.cnf.HasTLS() {
+	assert.MayTrue(c.cnf.HasTLS(), func() {
 		tlsConfig := &api.TLSConfig{
 			CertFile:           c.cnf.TLSConfig.CertFile,
 			KeyFile:            c.cnf.TLSConfig.KeyFile,
@@ -44,15 +45,9 @@ func (c *ConsulRegistry) New() {
 			InsecureSkipVerify: c.cnf.TLSConfig.InsecureSkipVerify,
 		}
 		config.TLSConfig = *tlsConfig
-	}
+	})
 
-	client, err := api.NewClient(config)
-	if err != nil {
-		c.log.Errorf("创建consul客户端失败: %v", err)
-		return
-	}
-
-	c.client = client
+	c.client = assert.ShouldCall1RE(api.NewClient, config, "创建consul客户端失败")
 
 	c.log.Infof("初始化consul注册中心，地址: %s", c.cnf.Address)
 }
@@ -75,7 +70,7 @@ func (c *ConsulRegistry) Publisher(value string) {
 	}
 
 	// 添加健康检查
-	if c.cnf.HealthCheckPath != "" {
+	assert.MayTrue(c.cnf.HaHealthCheckPath(), func() {
 		check := &api.AgentServiceCheck{
 			HTTP:                           fmt.Sprintf("%s://%s:%d%s", c.cnf.GetScheme(), c.cnf.ServiceAddress, c.cnf.ServicePort, c.cnf.HealthCheckPath),
 			Interval:                       c.cnf.GetHealthCheckInterval(),
@@ -83,21 +78,17 @@ func (c *ConsulRegistry) Publisher(value string) {
 			DeregisterCriticalServiceAfter: c.cnf.GetDeregisterAfter(),
 		}
 		registration.Check = check
-	}
+	})
 
 	// 企业版特性
-	if c.cnf.Namespace != "" {
+	assert.MayTrue(c.cnf.HasNamespace(), func() {
 		registration.Namespace = c.cnf.Namespace
-	}
-	if c.cnf.Partition != "" {
+	})
+	assert.MayTrue(c.cnf.HasPartition(), func() {
 		registration.Partition = c.cnf.Partition
-	}
+	})
 
-	err := c.client.Agent().ServiceRegister(registration)
-	if err != nil {
-		c.log.Errorf("注册consul服务失败: %v", err)
-		return
-	}
+	assert.ShouldCall1E(c.client.Agent().ServiceRegister, registration, "注册consul服务失败")
 
 	c.log.Infof("consul服务注册成功")
 }
@@ -109,17 +100,13 @@ func (c *ConsulRegistry) Deregister() {
 
 	c.log.Infof("注销consul服务: %s", c.cnf.GetServiceID())
 
-	err := c.client.Agent().ServiceDeregister(c.cnf.GetServiceID())
-	if err != nil {
-		c.log.Errorf("注销consul服务失败: %v", err)
-		return
-	}
+	assert.ShouldCall1E(c.client.Agent().ServiceDeregister, c.cnf.GetServiceID(), "注销consul服务失败")
 
 	c.log.Infof("consul服务注销成功")
 }
 
 // GetValue 获取单个服务实例
-func (c *ConsulRegistry) GetValue(key string, opts ...interface{}) string {
+func (c *ConsulRegistry) GetValue(key string, opts ...any) string {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -137,7 +124,7 @@ func (c *ConsulRegistry) GetValue(key string, opts ...interface{}) string {
 }
 
 // GetValues 获取所有服务实例
-func (c *ConsulRegistry) GetValues(key string, opts ...interface{}) interface{} {
+func (c *ConsulRegistry) GetValues(key string, opts ...any) interface{} {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -160,12 +147,7 @@ func (c *ConsulRegistry) Put(ctx context.Context, key string, val string) {
 		Key:   key,
 		Value: []byte(val),
 	}
-	_, err := c.client.KV().Put(kv, nil)
-	if err != nil {
-		c.log.Errorf("写入consul KV失败: %v", err)
-		return
-	}
-
+	assert.ShouldCall2RE(c.client.KV().Put, kv, nil, "写入consul KV失败")
 }
 
 // Watch 监听服务变化
@@ -203,9 +185,9 @@ func (c *ConsulRegistry) Watch(ctx context.Context, prefix string) interface{} {
 func (c *ConsulRegistry) Close() {
 	c.log.Infof("关闭consul注册中心")
 
-	if c.cancel != nil {
+	assert.MayTrue(c.client != nil, func() {
 		c.cancel()
-	}
+	})
 
 	// 注销服务
 	c.Deregister()
@@ -217,11 +199,8 @@ func (c *ConsulRegistry) Close() {
 func (c *ConsulRegistry) IsHealthy() bool {
 	// TODO: 实现健康检查
 	// 示例代码:
-	/*
-		_, err := c.client.Agent().Self()
-		return err == nil
-	*/
-	return true
+	_, err := c.client.Agent().Self()
+	return err == nil
 }
 
 // Refresh 刷新服务注册

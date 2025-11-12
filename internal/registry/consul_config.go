@@ -100,6 +100,16 @@ func (c *ConsulConfig) HasTLS() bool {
 		c.TLSConfig.KeyFile != "" &&
 		c.TLSConfig.CAFile != ""
 }
+func (c *ConsulConfig) HaHealthCheckPath() bool {
+	return c.HealthCheckPath != ""
+}
+
+func (c *ConsulConfig) HasNamespace() bool {
+	return c.Namespace != ""
+}
+func (c *ConsulConfig) HasPartition() bool {
+	return c.Partition != ""
+}
 
 // HasToken 是否有Token
 func (c *ConsulConfig) HasToken() bool {
