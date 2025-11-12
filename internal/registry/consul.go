@@ -22,7 +22,7 @@ type ConsulRegistry struct {
 var _ Registry = (*ConsulRegistry)(nil)
 
 // New 初始化consul客户端
-func (c *ConsulRegistry) New() error {
+func (c *ConsulRegistry) New() {
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.log.Infof("初始化consul注册中心，地址: %s", c.cnf.Address)
 
@@ -58,11 +58,10 @@ func (c *ConsulRegistry) New() error {
 	*/
 
 	c.log.Warnf("consul注册中心实现待完成，请引入 github.com/hashicorp/consul/api")
-	return nil
 }
 
 // Publisher 注册服务
-func (c *ConsulRegistry) Publisher(value string) error {
+func (c *ConsulRegistry) Publisher(value string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -108,11 +107,10 @@ func (c *ConsulRegistry) Publisher(value string) error {
 	*/
 
 	c.log.Infof("consul服务注册成功")
-	return nil
 }
 
 // Deregister 注销服务
-func (c *ConsulRegistry) Deregister() error {
+func (c *ConsulRegistry) Deregister() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -129,7 +127,6 @@ func (c *ConsulRegistry) Deregister() error {
 	*/
 
 	c.log.Infof("consul服务注销成功")
-	return nil
 }
 
 // GetValue 获取单个服务实例
@@ -176,7 +173,7 @@ func (c *ConsulRegistry) GetValues(key string, opts ...interface{}) interface{} 
 }
 
 // Put 创建或更新键值
-func (c *ConsulRegistry) Put(ctx context.Context, key string, val string) error {
+func (c *ConsulRegistry) Put(ctx context.Context, key string, val string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -196,7 +193,6 @@ func (c *ConsulRegistry) Put(ctx context.Context, key string, val string) error 
 		}
 	*/
 
-	return nil
 }
 
 // Watch 监听服务变化
@@ -235,7 +231,7 @@ func (c *ConsulRegistry) Watch(ctx context.Context, prefix string) interface{} {
 }
 
 // Close 关闭consul客户端
-func (c *ConsulRegistry) Close() error {
+func (c *ConsulRegistry) Close() {
 	c.log.Infof("关闭consul注册中心")
 
 	if c.cancel != nil {
@@ -243,12 +239,9 @@ func (c *ConsulRegistry) Close() error {
 	}
 
 	// 注销服务
-	if err := c.Deregister(); err != nil {
-		c.log.Errorf("注销consul服务失败: %v", err)
-	}
+	c.Deregister()
 
 	c.log.Infof("consul注册中心关闭成功")
-	return nil
 }
 
 // IsHealthy 健康检查
@@ -263,22 +256,16 @@ func (c *ConsulRegistry) IsHealthy() bool {
 }
 
 // Refresh 刷新服务注册
-func (c *ConsulRegistry) Refresh() error {
+func (c *ConsulRegistry) Refresh() {
 	c.log.Infof("刷新consul服务注册")
 
 	// 先注销
-	if err := c.Deregister(); err != nil {
-		c.log.Warnf("注销旧服务失败: %v", err)
-	}
+	c.Deregister()
 
 	// 重新注册
-	if err := c.Publisher(""); err != nil {
-		c.log.Errorf("重新注册服务失败: %v", err)
-		return err
-	}
+	c.Publisher("")
 
 	c.log.Infof("consul服务刷新成功")
-	return nil
 }
 
 // GetLeaseID 获取租约ID（consul不使用租约）

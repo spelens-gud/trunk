@@ -28,7 +28,7 @@ type NacosRegistry struct {
 var _ Registry = (*NacosRegistry)(nil)
 
 // New 初始化nacos客户端
-func (n *NacosRegistry) New() error {
+func (n *NacosRegistry) New() {
 	n.ctx, n.cancel = context.WithCancel(context.Background())
 	n.log.Infof("初始化nacos注册中心，服务器: %v", n.cnf.Hosts)
 
@@ -72,63 +72,54 @@ func (n *NacosRegistry) New() error {
 }
 
 // Publisher 注册服务
-func (n *NacosRegistry) Publisher(value string) error {
+func (n *NacosRegistry) Publisher(value string) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	n.log.Infof("注册nacos服务: %s", n.cnf.ServiceName)
 
 	// TODO: 实现服务注册
-	// 示例代码:
-	/*
-		success, err := n.namingClient.RegisterInstance(vo.RegisterInstanceParam{
-			Ip:          n.cnf.IP,
-			Port:        n.cnf.ServicePort,
-			ServiceName: n.cnf.ServiceName,
-			GroupName:   n.cnf.GetGroupName(),
-			ClusterName: n.cnf.GetClusterName(),
-			Weight:      n.cnf.GetWeight(),
-			Enable:      n.cnf.IsEnable(),
-			Healthy:     n.cnf.IsHealthy(),
-			Ephemeral:   n.cnf.IsEphemeral(),
-			Metadata:    n.cnf.Metadata,
-		})
-		if err != nil || !success {
-			n.log.Errorf("注册nacos服务失败: %v", err)
-			return fmt.Errorf("注册nacos服务失败: %w", err)
-		}
-	*/
+	success, err := n.namingClient.RegisterInstance(vo.RegisterInstanceParam{
+		Ip:          n.cnf.IP,
+		Port:        n.cnf.ServicePort,
+		ServiceName: n.cnf.ServiceName,
+		GroupName:   n.cnf.GetGroupName(),
+		ClusterName: n.cnf.GetClusterName(),
+		Weight:      n.cnf.GetWeight(),
+		Enable:      n.cnf.IsEnable(),
+		Healthy:     n.cnf.IsHealthy(),
+		Ephemeral:   n.cnf.IsEphemeral(),
+		Metadata:    n.cnf.Metadata,
+	})
+	if err != nil || !success {
+		n.log.Errorf("注册nacos服务失败: %v", err)
+		return
+	}
 
 	n.log.Infof("nacos服务注册成功")
-	return nil
 }
 
 // Deregister 注销服务
-func (n *NacosRegistry) Deregister() error {
+func (n *NacosRegistry) Deregister() {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	n.log.Infof("注销nacos服务: %s", n.cnf.ServiceName)
 
-	// TODO: 实现服务注销
-	// 示例代码:
-	/*
-		success, err := n.namingClient.DeregisterInstance(vo.DeregisterInstanceParam{
-			Ip:          n.cnf.IP,
-			Port:        n.cnf.ServicePort,
-			ServiceName: n.cnf.ServiceName,
-			GroupName:   n.cnf.GetGroupName(),
-			Cluster:     n.cnf.GetClusterName(),
-			Ephemeral:   n.cnf.IsEphemeral(),
-		})
-		if err != nil || !success {
-			n.log.Errorf("注销nacos服务失败: %v", err)
-			return fmt.Errorf("注销nacos服务失败: %w", err)
-		}
-	*/
+	success, err := n.namingClient.DeregisterInstance(vo.DeregisterInstanceParam{
+		Ip:          n.cnf.IP,
+		Port:        n.cnf.ServicePort,
+		ServiceName: n.cnf.ServiceName,
+		GroupName:   n.cnf.GetGroupName(),
+		Cluster:     n.cnf.GetClusterName(),
+		Ephemeral:   n.cnf.IsEphemeral(),
+	})
+	if err != nil || !success {
+		n.log.Errorf("注销nacos服务失败: %v", err)
+		return
+	}
 
 	n.log.Infof("nacos服务注销成功")
-	return nil
 }
 
 // GetValue 获取单个服务实例
@@ -179,7 +170,7 @@ func (n *NacosRegistry) GetValues(key string, opts ...interface{}) interface{} {
 }
 
 // Put 创建或更新服务
-func (n *NacosRegistry) Put(ctx context.Context, key string, val string) error {
+func (n *NacosRegistry) Put(ctx context.Context, key string, val string) {
 	// Nacos 使用服务注册而不是键值存储
 	return fmt.Errorf("nacos不支持Put操作，请使用Publisher注册服务")
 }
@@ -212,7 +203,7 @@ func (n *NacosRegistry) Watch(ctx context.Context, prefix string) interface{} {
 }
 
 // Close 关闭nacos客户端
-func (n *NacosRegistry) Close() error {
+func (n *NacosRegistry) Close() {
 	n.log.Infof("关闭nacos注册中心")
 
 	if n.cancel != nil {
@@ -236,13 +227,11 @@ func (n *NacosRegistry) IsHealthy() bool {
 }
 
 // Refresh 刷新服务注册
-func (n *NacosRegistry) Refresh() error {
+func (n *NacosRegistry) Refresh() {
 	n.log.Infof("刷新nacos服务注册")
 
 	// 先注销
-	if err := n.Deregister(); err != nil {
-		n.log.Warnf("注销旧服务失败: %v", err)
-	}
+	n.Deregister()
 
 	// 重新注册
 	if err := n.Publisher(""); err != nil {
@@ -251,10 +240,9 @@ func (n *NacosRegistry) Refresh() error {
 	}
 
 	n.log.Infof("nacos服务刷新成功")
-	return nil
 }
 
-// GetLeaseID 获取租约ID（nacos不使用租约）
+// GetLeaseID 获取租约ID(nacos不使用租约)
 func (n *NacosRegistry) GetLeaseID() uint64 {
 	return 0
 }

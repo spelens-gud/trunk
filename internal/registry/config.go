@@ -3,6 +3,7 @@ package registry
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"os"
 	"time"
 
@@ -79,11 +80,11 @@ func (c *EtcdConfig) HasTLS() bool {
 
 // Validate 验证
 func (c *EtcdConfig) Validate() error {
-	if err := assert.ShouldTrue(len(c.Hosts) > 0, "注册etcd主机列表不能为空"); err != nil {
-		return err
+	if len(c.Hosts) == 0 {
+		return errors.New("etcd的host为空")
 	}
-	if err := assert.ShouldTrue(len(c.Key) > 0, "注册etcd键值不能为空"); err != nil {
-		return err
+	if len(c.Key) > 0 {
+		return errors.New("注册etcd键值不能为空")
 	}
 	return nil
 }
@@ -100,20 +101,14 @@ func (c *EtcdConfig) LoadTLSConfig() (config *tls.Config, err error) {
 	}
 
 	// 加载客户端证书
-	cert, err := assert.ShouldValue(tls.LoadX509KeyPair(c.CertFile, c.CertKeyFile))
-	if err != nil {
-		return nil, err
-	}
+	cert := assert.ShouldCall2RE(tls.LoadX509KeyPair, c.CertFile, c.CertKeyFile)
 
 	// 加载CA证书
-	caCert, err := assert.ShouldValue(os.ReadFile(c.CACertFile))
-	if err != nil {
-		return nil, err
-	}
+	caCert := assert.ShouldCall1RE(os.ReadFile, c.CACertFile)
 
 	caCertPool := x509.NewCertPool()
-	if err := assert.ShouldTrue(caCertPool.AppendCertsFromPEM(caCert), "failed to append CA certificate"); err != nil {
-		return nil, err
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		return nil, errors.New("failed to append CA certificate")
 	}
 
 	return &tls.Config{
