@@ -99,7 +99,7 @@ func NewLogger(config *Config) (ILogger, error) {
 	// 创建 logger 选项
 	options := []zap.Option{
 		zap.AddCaller(),
-		zap.AddCallerSkip(1),
+		zap.AddCallerSkip(4),
 	}
 
 	if !config.EnableCaller {
