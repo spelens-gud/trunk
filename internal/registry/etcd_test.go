@@ -15,10 +15,12 @@ import (
 
 // 测试用的 etcd 配置
 var testEtcdConfig = &EtcdConfig{
-	Hosts:       []string{"192.168.1.31:2379"},
+	Hosts:       []string{"192.168.1.150:2379"},
 	Key:         "/test/service",
 	LeaseTTL:    5,
 	DialTimeout: 3,
+	User:        "root",
+	Pass:        "123456",
 }
 
 // 创建测试用的 EtcdRegistry 实例

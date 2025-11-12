@@ -3,7 +3,7 @@ package server
 import (
 	"sync"
 
-	"go.etcd.io/etcd/client/v3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type Cache struct {
@@ -13,7 +13,5 @@ type Cache struct {
 	key           string
 	val           string
 
-	lock     sync.RWMutex    // 读写锁
-	EtcdConf *model.EtcdYaml // registry 配置
-	log      *logs.Log       // 日志
+	lock sync.RWMutex // 读写锁
 }

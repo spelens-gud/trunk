@@ -29,6 +29,7 @@ type NacosConfig struct {
 	Username    string            `yaml:"username"`    // 用户名
 	Password    string            `yaml:"password"`    // 密码
 	LogLevel    string            `yaml:"logLevel"`    // 日志级别
+	ContextPath string            `yaml:"contextPath"` // 上下文路径
 	CacheDir    string            `yaml:"cacheDir"`    // 缓存目录
 	LogDir      string            `yaml:"logDir"`      // 日志目录
 }
