@@ -28,13 +28,14 @@ var nodeCmd = &cobra.Command{
 	Long:  `Node 服务负责节点管理和分布式协调`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Node 配置
-		assert.MustFunc(initNodeConfig, "加载配置文件失败")
+		assert.MustCall0E(initNodeConfig, "加载配置文件失败")
 
 		// 从 Node 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(nodeViper)
 
 		// 创建日志实例
-		log := assert.MustValue(logger.NewLogger(logConfig))
+		log := assert.MustCall1RE(logger.NewLogger, logConfig, "创建日志实例失败")
+		assert.SetLogger(log) // 注入assert模块
 		defer log.Sync()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -61,12 +62,7 @@ var nodeCmd = &cobra.Command{
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 
-		if err := gracefulShutdownNodeServer(shutdownCtx); err != nil {
-			log.Infof("客户端关闭失败: %v", err)
-		} else {
-			log.Infof("客户端已成功关闭")
-		}
-
+		assert.ShouldCall1E(gracefulShutdownNodeServer, shutdownCtx, "客户端关闭失败")
 	},
 }
 
@@ -82,27 +78,24 @@ func initNodeConfig() error {
 	// 创建 Node 服务专用的 viper 实例
 	nodeViper = viper.New()
 
-	if nodeConfigFile != "" {
+	assert.Then(nodeConfigFile != "").Do(func() {
 		// 使用命令行指定的配置文件
 		nodeViper.SetConfigFile(nodeConfigFile)
-	} else {
+	}).Else(func() {
 		// 查找主目录
-		home := assert.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
-
+		home := assert.MustCall0RE(os.UserHomeDir, "获取用户主目录失败")
 		nodeViper.AddConfigPath(home)
 		nodeViper.AddConfigPath(".")
 		nodeViper.AddConfigPath("./config")
 		nodeViper.SetConfigType("yaml")
 		nodeViper.SetConfigName("node")
-	}
+	})
 
 	// 读取环境变量
 	nodeViper.AutomaticEnv()
 
 	// 读取配置文件
-	if err := nodeViper.ReadInConfig(); err != nil {
-		return fmt.Errorf("读取配置文件失败: %w", err)
-	}
+	assert.MustCall0E(nodeViper.ReadInConfig, "读取配置文件失败")
 
 	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", nodeViper.ConfigFileUsed())
 	return nil

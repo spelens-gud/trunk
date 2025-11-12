@@ -28,13 +28,14 @@ var friendCmd = &cobra.Command{
 	Long:  `Friend 服务负责好友系统的管理`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 初始化 Friend 配置
-		assert.MustFunc(initFriendConfig, "加载配置文件失败")
+		assert.MustCall0E(initFriendConfig, "加载配置文件失败")
 
 		// 从 Friend 专用的 viper 实例加载日志配置
 		logConfig := logger.LoadConfigFromViper(friendViper)
 
 		// 创建日志实例
-		log := assert.MustValue(logger.NewLogger(logConfig))
+		log := assert.MustCall1RE(logger.NewLogger, logConfig, "创建日志实例失败")
+		assert.SetLogger(log) // 注入assert模块
 		defer log.Sync()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -61,12 +62,7 @@ var friendCmd = &cobra.Command{
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 
-		if err := gracefulShutdownFriendServer(shutdownCtx); err != nil {
-			log.Infof("客户端关闭失败: %v", err)
-		} else {
-			log.Infof("客户端已成功关闭")
-		}
-
+		assert.ShouldCall1E(gracefulShutdownFriendServer, shutdownCtx, "客户端关闭失败")
 	},
 }
 
@@ -82,27 +78,24 @@ func initFriendConfig() error {
 	// 创建 Friend 服务专用的 viper 实例
 	friendViper = viper.New()
 
-	if friendConfigFile != "" {
+	assert.Then(friendConfigFile != "").Do(func() {
 		// 使用命令行指定的配置文件
 		friendViper.SetConfigFile(friendConfigFile)
-	} else {
+	}).Else(func() {
 		// 查找主目录
-		home := assert.MustFuncValue(os.UserHomeDir, "获取用户主目录失败")
-
+		home := assert.MustCall0RE(os.UserHomeDir, "获取用户主目录失败")
 		friendViper.AddConfigPath(home)
 		friendViper.AddConfigPath(".")
 		friendViper.AddConfigPath("./config")
 		friendViper.SetConfigType("yaml")
 		friendViper.SetConfigName("friend")
-	}
+	})
 
 	// 读取环境变量
 	friendViper.AutomaticEnv()
 
 	// 读取配置文件
-	if err := friendViper.ReadInConfig(); err != nil {
-		return fmt.Errorf("读取配置文件失败: %w", err)
-	}
+	assert.MustCall0E(friendViper.ReadInConfig, "读取配置文件失败")
 
 	fmt.Fprintf(os.Stderr, "使用配置文件: %s\n", friendViper.ConfigFileUsed())
 	return nil
