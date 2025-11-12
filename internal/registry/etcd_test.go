@@ -497,10 +497,10 @@ func TestEtcdRegistry_ConcurrentAccess(t *testing.T) {
 	wg.Add(concurrency * 2) // 写入和读取各一半
 
 	// 并发写入
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operationsPerGoroutine; j++ {
+			for j := range operationsPerGoroutine {
 				key := fmt.Sprintf("%skey-%d-%d", prefix, id, j)
 				value := fmt.Sprintf("value-%d-%d", id, j)
 				registry.Put(ctx, key, value)
@@ -509,10 +509,10 @@ func TestEtcdRegistry_ConcurrentAccess(t *testing.T) {
 	}
 
 	// 并发读取
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operationsPerGoroutine; j++ {
+			for j := range operationsPerGoroutine {
 				key := fmt.Sprintf("%skey-%d-%d", prefix, id, j)
 				_ = registry.GetValue(key)
 			}
@@ -545,7 +545,7 @@ func TestEtcdRegistry_ConcurrentPublisher(t *testing.T) {
 	wg.Add(concurrency)
 
 	// 并发发布服务
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		go func(id int) {
 			defer wg.Done()
 			value := fmt.Sprintf("service-%d", id)
@@ -582,7 +582,7 @@ func TestEtcdRegistry_Performance_LargeData(t *testing.T) {
 
 	// 测试大量写入
 	start := time.Now()
-	for i := 0; i < dataSize; i++ {
+	for i := range dataSize {
 		key := fmt.Sprintf("%skey-%d", prefix, i)
 		value := fmt.Sprintf("value-%d", i)
 		registry.Put(ctx, key, value)
@@ -605,7 +605,7 @@ func TestEtcdRegistry_Performance_LargeData(t *testing.T) {
 
 	// 测试单个键读取性能
 	start = time.Now()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Sprintf("%skey-%d", prefix, i)
 		_ = registry.GetValue(key)
 	}
@@ -637,10 +637,10 @@ func TestEtcdRegistry_Performance_HighConcurrency(t *testing.T) {
 	var errorCount int32
 	var mu sync.Mutex
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operationsPerGoroutine; j++ {
+			for j := range operationsPerGoroutine {
 				key := fmt.Sprintf("%skey-%d-%d", prefix, id, j)
 				value := fmt.Sprintf("value-%d-%d", id, j)
 				registry.Put(ctx, key, value)
@@ -763,7 +763,7 @@ func TestEtcdRegistry_Performance_WatchLatency(t *testing.T) {
 
 	// 测试多次 Watch 延迟
 	successCount := 0
-	for i := 0; i < testCount; i++ {
+	for i := range testCount {
 		key := fmt.Sprintf("%skey-%d", watchPrefix, i)
 		value := fmt.Sprintf("value-%d", i)
 
@@ -830,11 +830,11 @@ func TestEtcdRegistry_Performance_DistributedLock(t *testing.T) {
 	start := time.Now()
 	lockTimes := make([]time.Duration, 0, goroutines*operationsPerGoroutine)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
 
-			for j := 0; j < operationsPerGoroutine; j++ {
+			for range operationsPerGoroutine {
 				lockStart := time.Now()
 
 				// 创建会话
@@ -908,9 +908,11 @@ func BenchmarkEtcdRegistry_Put(b *testing.B) {
 	key := "/bench/put/key"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		value := fmt.Sprintf("value-%d", i)
 		registry.Put(ctx, key, value)
+		i++
 	}
 }
 
@@ -931,7 +933,7 @@ func BenchmarkEtcdRegistry_GetValue(b *testing.B) {
 	time.Sleep(50 * time.Millisecond)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = registry.GetValue(key)
 	}
 }
@@ -950,7 +952,7 @@ func BenchmarkEtcdRegistry_GetValues(b *testing.B) {
 	prefix := "/bench/getvalues/"
 
 	// 准备测试数据
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Sprintf("%skey-%d", prefix, i)
 		value := fmt.Sprintf("value-%d", i)
 		registry.Put(ctx, key, value)
@@ -959,7 +961,7 @@ func BenchmarkEtcdRegistry_GetValues(b *testing.B) {
 	time.Sleep(100 * time.Millisecond)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = registry.GetValuesTyped(prefix, clientv3.WithPrefix())
 	}
 }
@@ -974,10 +976,12 @@ func BenchmarkEtcdRegistry_Publisher(b *testing.B) {
 	defer registry.Close()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		value := fmt.Sprintf("service-%d", i)
 		registry.Publisher(value)
 		time.Sleep(20 * time.Millisecond) // 避免过快创建租约
+		i++
 	}
 }
 

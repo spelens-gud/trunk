@@ -53,11 +53,6 @@ func (c *ConsulConfig) Validate() error {
 	return nil
 }
 
-// GetType 获取注册中心类型
-func (c *ConsulConfig) GetType() RegistryType {
-	return RegistryTypeConsul
-}
-
 // GetScheme 获取协议，默认http
 func (c *ConsulConfig) GetScheme() string {
 	if c.Scheme == "" {

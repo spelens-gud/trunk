@@ -44,11 +44,6 @@ func (c *NacosConfig) Validate() error {
 	return nil
 }
 
-// GetType 获取注册中心类型
-func (c *NacosConfig) GetType() RegistryType {
-	return RegistryTypeNacos
-}
-
 // GetPort 获取端口，默认8848
 func (c *NacosConfig) GetPort() uint64 {
 	if c.Port == 0 {

@@ -89,11 +89,6 @@ func (c *EtcdConfig) Validate() error {
 	return nil
 }
 
-// GetType 获取注册中心类型
-func (c *EtcdConfig) GetType() RegistryType {
-	return RegistryTypeEtcd
-}
-
 // LoadTLSConfig 加载TLS配置
 func (c *EtcdConfig) LoadTLSConfig() (config *tls.Config, err error) {
 	if !c.HasTLS() {

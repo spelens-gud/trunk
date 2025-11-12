@@ -2,7 +2,6 @@ package registry
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/nacos-group/nacos-sdk-go/v2/clients"
 	"github.com/nacos-group/nacos-sdk-go/v2/clients/naming_client"
@@ -62,13 +61,12 @@ func (n *NacosRegistry) New() {
 	)
 	if err != nil {
 		n.log.Errorf("创建nacos客户端失败: %v", err)
-		return fmt.Errorf("创建nacos客户端失败: %w", err)
+		return
 	}
 
 	n.namingClient = namingClient
 
 	n.log.Warnf("nacos注册中心实现待完成，请引入 github.com/nacos-group/nacos-sdk-go/v2")
-	return nil
 }
 
 // Publisher 注册服务
@@ -172,7 +170,7 @@ func (n *NacosRegistry) GetValues(key string, opts ...interface{}) interface{} {
 // Put 创建或更新服务
 func (n *NacosRegistry) Put(ctx context.Context, key string, val string) {
 	// Nacos 使用服务注册而不是键值存储
-	return fmt.Errorf("nacos不支持Put操作，请使用Publisher注册服务")
+	n.log.Errorf("nacos不支持Put操作，请使用Publisher注册服务")
 }
 
 // Watch 监听服务变化
@@ -211,12 +209,9 @@ func (n *NacosRegistry) Close() {
 	}
 
 	// 注销服务
-	if err := n.Deregister(); err != nil {
-		n.log.Errorf("注销nacos服务失败: %v", err)
-	}
+	n.Deregister()
 
 	n.log.Infof("nacos注册中心关闭成功")
-	return nil
 }
 
 // IsHealthy 健康检查
@@ -234,10 +229,7 @@ func (n *NacosRegistry) Refresh() {
 	n.Deregister()
 
 	// 重新注册
-	if err := n.Publisher(""); err != nil {
-		n.log.Errorf("重新注册服务失败: %v", err)
-		return err
-	}
+	n.Publisher("")
 
 	n.log.Infof("nacos服务刷新成功")
 }
