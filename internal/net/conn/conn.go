@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spelens-gud/trunk/internal/assert"
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/assert"
+	"github.com/spelens-gud/logger"
 )
 
 // OnConnectFunc 连接建立时调用

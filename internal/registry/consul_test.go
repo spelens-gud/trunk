@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/spelens-gud/trunk/internal/assert"
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/assert"
+	"github.com/spelens-gud/logger"
 )
 
 // 测试用的 consul 配置

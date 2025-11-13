@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/spelens-gud/trunk/internal/assert"
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/assert"
+	"github.com/spelens-gud/logger"
 )
 
 // ConsulRegistry consul注册中心实现

@@ -9,11 +9,10 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/model"
 	"github.com/nacos-group/nacos-sdk-go/v2/vo"
-	"github.com/spelens-gud/trunk/internal/assert"
+	"github.com/spelens-gud/assert"
+	"github.com/spelens-gud/logger"
 
 	"sync"
-
-	"github.com/spelens-gud/trunk/internal/logger"
 )
 
 // NacosRegistry nacos注册中心实现

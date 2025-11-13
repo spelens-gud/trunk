@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spelens-gud/trunk/internal/assert"
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/assert"
+	"github.com/spelens-gud/logger"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )

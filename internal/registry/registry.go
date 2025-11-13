@@ -3,8 +3,8 @@ package registry
 import (
 	"context"
 
-	"github.com/spelens-gud/trunk/internal/assert"
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/assert"
+	"github.com/spelens-gud/logger"
 )
 
 type IRegistry interface {

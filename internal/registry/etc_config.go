@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/spelens-gud/trunk/internal/assert"
+	"github.com/spelens-gud/assert"
 )
 
 // EtcdConfig etcd配置

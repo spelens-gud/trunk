@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spelens-gud/trunk/internal/assert"
+	"github.com/spelens-gud/assert"
 )
 
 // ConnectionManager 连接管理器
