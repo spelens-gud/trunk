@@ -3,43 +3,58 @@ package conn
 import (
 	"sync"
 	"time"
+
+	"github.com/spelens-gud/trunk/internal/assert"
+	"github.com/spelens-gud/trunk/internal/logger"
 )
 
 // Conn 连接
 type Conn[T any] struct {
-	Config[T]                // 配置
-	conn         T           // 连接
-	sync.RWMutex             // 锁
-	writeChan    chan []byte // 写数据通道
-	closed       bool        // 是否关闭
-	createAt     time.Time   // 创建时间
-	updateAt     int64       // 更新时间
+	cnf       NetConfig[T]   // 配置
+	log       logger.ILogger // 日志
+	conn      T              // 连接
+	lock      sync.RWMutex   // 锁
+	writeChan chan []byte    // 写数据通道
+	closed    bool           // 是否关闭
+	createAt  time.Time      // 创建时间
+	updateAt  int64          // 更新时间
 }
 
 // NewConn 创建连接
-func NewConn[T any](conn T, cfg Config[T]) *Conn[T] {
-	c := &Conn[T]{
+func NewConn[T any](conn T, cfg NetConfig[T]) *Conn[T] {
+	return &Conn[T]{
 		conn:      conn,
-		Config:    cfg,
+		cnf:       cfg,
 		writeChan: make(chan []byte, 64),
 		createAt:  time.Now(),
 	}
-	return c
+}
+
+// SetLogger 设置日志
+func (s *Conn[T]) SetLogger(logger logger.ILogger) {
+	s.log = logger
 }
 
 // Start 启动
 func (s *Conn[T]) Start() {
-	go s.write()
+	go logger.WithRecover(s.log, func() {
+		s.write()
+	})
+
 	s.read()
 }
 
 // Write 写数据
 func (s *Conn[T]) Write(b []byte) {
-	s.RLock()
-	defer s.RUnlock()
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	// 如果通道关闭则退出
 	if s.closed || b == nil {
 		return
 	}
+
+	// 数据给到写通道
 	s.writeChan <- b
 }
 
@@ -48,16 +63,20 @@ func (s *Conn[T]) write() {
 	for {
 		select {
 		case msg := <-s.writeChan:
-			if msg != nil {
-				if s.OnWrite != nil {
-					if err := s.OnWrite(s.conn, msg); err != nil {
-						s.Log.Errorf("Write Error: %v", err)
-						s.Close()
-						return
-					}
+			// 如果通道关闭则退出
+			if msg == nil {
+				return
+			}
 
-				}
-			} else {
+			// 如果没有写处理函数则退出
+			if s.cnf.OnWrite == nil {
+				return
+			}
+
+			// 写数据
+			if err := s.cnf.OnWrite(s.conn, msg); err != nil {
+				s.log.Errorf("Write Error: %v", err)
+				assert.ShouldCall0E(s.Close, "conn 关闭错误")
 				return
 			}
 		}
@@ -67,34 +86,45 @@ func (s *Conn[T]) write() {
 // read 读数据
 func (s *Conn[T]) read() {
 	for {
-		if s.OnRead == nil {
+		// 如果没有读处理函数则退出
+		if s.cnf.OnRead == nil {
 			continue
 		}
+
+		// 如果通道关闭则退出
 		if s.closed {
 			return
 		}
-		if _, bs, err := s.OnRead(s.conn); err != nil {
-			s.Log.Warnf("conn read err: %p, %p %s ", s, s.conn, err)
-			s.Close()
+
+		// 读数据
+		if _, bs, err := s.cnf.OnRead(s.conn); err != nil {
+			s.log.Warnf("conn read err: %p, %p %s ", s, s.conn, err)
+			assert.ShouldCall0E(s.Close, "conn 关闭错误")
 			break
 		} else {
-			s.OnData(s, bs)
+			assert.ShouldCall2E(s.cnf.OnData, s, bs, "处理数据函数发生错误")
 		}
 	}
 }
 
 // Close 关闭
 func (s *Conn[T]) Close() error {
-	s.Lock()
-	defer s.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// 如果已经关闭则退出
 	if s.closed {
 		return nil
 	}
+
 	s.closed = true
 	close(s.writeChan)
-	if s.OnClose != nil {
-		return s.OnClose(s.conn)
+
+	// 关闭处理函数
+	if s.cnf.OnClose != nil {
+		return s.cnf.OnClose(s.conn)
 	}
+
 	return nil
 }
 
@@ -105,15 +135,18 @@ func (s *Conn[T]) GetConn() T {
 
 // SetId 设置id
 func (s *Conn[T]) SetId(id uint64) {
-	s.Lock()
-	defer s.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// 如果已经关闭则退出
 	if s.closed {
 		return
 	}
-	s.Config.Id = id
+
+	s.cnf.Id = id
 }
 
 // GetId 获取id
 func (s *Conn[T]) GetId() uint64 {
-	return s.Config.Id
+	return s.cnf.Id
 }

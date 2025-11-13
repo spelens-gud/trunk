@@ -2,8 +2,6 @@ package conn
 
 import (
 	"time"
-
-	"github.com/spelens-gud/trunk/internal/logger"
 )
 
 // DefaultWriteTimeOut 默认写超时
@@ -41,12 +39,11 @@ type IConn interface {
 	GetId() uint64
 }
 
-// Config 配置
-type Config[T any] struct {
+// NetConfig 配置
+type NetConfig[T any] struct {
 	Id           uint64         //  id
 	Name         string         // 服务名称
 	Host         string         // 服务地址
-	Log          logger.ILogger // 日志
 	OnWrite      OnWriteFunc[T] // 写数据处理
 	OnRead       OnReadFunc[T]  // 读数据处理
 	OnClose      OnCloseFunc[T] // 关闭处理

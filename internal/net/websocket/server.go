@@ -1,7 +1,6 @@
 package webSocket
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,113 +9,107 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/spelens-gud/trunk/internal/assert"
 	"github.com/spelens-gud/trunk/internal/logger"
 	"github.com/spelens-gud/trunk/internal/net/conn"
 )
 
-// Config ws服务配置
-type Config struct {
-	Name         string                                  // 服务名称
-	Ip           string                                  // 服务ip
-	Port         int                                     // 服务端口
-	Route        string                                  // 路由
-	Log          logger.ILogger                          // 日志
-	Pprof        bool                                    // pprof
-	OnConnect    func(conn conn.IConn)                   // 连接建立时调用
-	OnData       func(conn conn.IConn, raw []byte) error // 数据处理
-	OnClose      func(conn conn.IConn) error             // 连接关闭时调用
-	WriteTimeout time.Duration                           // 写超时
-	ReadTimeout  time.Duration                           // 读超时
-	IdleTimeOut  time.Duration                           // 空闲超时
+type WsNetServer struct {
+	cnf           *ServerConfig                        // ws服务端配置
+	log           logger.ILogger                       // 日志
+	stopChan      chan chan struct{}                   // 停止信号
+	mux           *http.ServeMux                       // 路由
+	httpServer    *http.Server                         // http服务
+	listener      net.Listener                         // 监听
+	lock          sync.RWMutex                         // 锁
+	nets          map[*conn.Conn[*websocket.Conn]]bool // 所有连接, key: 连接, value: true
+	connCount     int                                  // 当前连接数
+	totalAccepted uint64                               // 累计接受的连接数
+	totalRejected uint64                               // 累计拒绝的连接数
 }
 
-// NetServer ws 服务
-type NetServer struct {
-	Config
-	stopChan   chan chan struct{}                   // 停止信号
-	mux        *http.ServeMux                       // 路由
-	httpServer *http.Server                         // http服务
-	listener   net.Listener                         // 监听
-	lock       sync.RWMutex                         // 锁
-	nets       map[*conn.Conn[*websocket.Conn]]bool // 所有连接
+// New 创建ws服务端
+func (s *WsNetServer) New() {
+	s.stopChan = make(chan chan struct{})
+	s.mux = http.NewServeMux()
+	s.nets = make(map[*conn.Conn[*websocket.Conn]]bool)
+
+	s.httpServer = &http.Server{
+		Addr:         fmt.Sprintf("0.0.0.0:%d", s.cnf.Port),
+		Handler:      s.mux,
+		ReadTimeout:  s.cnf.GetReadTimeout(),
+		WriteTimeout: s.cnf.GetWriteTimeout(),
+		IdleTimeout:  s.cnf.GetIdleTimeOut(),
+	}
+
+	s.log.Infof("监听地址:%s", s.httpServer.Addr)
+	s.listener = assert.ShouldCall2RE(net.Listen, "tcp", s.httpServer.Addr)
 }
 
-func New(cfg Config) (server *NetServer, err error) {
-	server = &NetServer{
-		Config:   cfg,
-		stopChan: make(chan chan struct{}),
-		mux:      http.NewServeMux(),
-		nets:     make(map[*conn.Conn[*websocket.Conn]]bool),
-	}
-
-	server.httpServer = &http.Server{
-		Addr:         fmt.Sprintf("0.0.0.0:%d", cfg.Port),
-		Handler:      server.mux,
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeOut,
-	}
-	cfg.Log.Infof("listening on:%s", server.httpServer.Addr)
-	server.listener, err = net.Listen("tcp", server.httpServer.Addr)
-	if err != nil {
-		return nil, err
-	}
-	server.Port = server.listener.Addr().(*net.TCPAddr).Port
-	return server, nil
-}
-
-// RunNet 运行
-func (this *NetServer) RunNet(route string) error {
+// RunNet 启动ws服务端
+func (s *WsNetServer) RunNet(route string) {
 	upgrader := websocket.Upgrader{
 		HandshakeTimeout:  3 * time.Second,
-		ReadBufferSize:    4096,
-		WriteBufferSize:   4096,
-		EnableCompression: true,
+		ReadBufferSize:    s.cnf.GetReadBufferSize(),
+		WriteBufferSize:   s.cnf.GetWriteBufferSize(),
+		EnableCompression: s.cnf.Compression,
 		CheckOrigin:       func(r *http.Request) bool { return true },
 	}
-	if this.Pprof {
-		this.initPprof()
-	}
-	this.Log.Infof("RunNet%s%s", route, this.Route)
-	this.mux.HandleFunc(route+this.Route, func(w http.ResponseWriter, r *http.Request) {
+
+	assert.MayTrue(s.cnf.Pprof, func() {
+		s.initPprof()
+	})
+
+	s.log.Infof("启动网络服务 路由:%s%s", route, s.cnf.Route)
+
+	s.mux.HandleFunc(route+s.cnf.Route, func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if r.Body != nil {
-				if err := r.Body.Close(); err != nil {
-					this.Log.Errorf("body close err:%s", err)
-				}
-			}
-			err := recover()
-			if err != nil {
-				this.Log.Errorf("handle err:%v", err)
-			}
+			assert.MayTrue(r.Body != nil && r.Body.Close() != nil, func() {
+				s.log.Errorf("关闭请求体失败:%s", err)
+			})
 
+			if err := recover(); err != nil {
+				s.log.Errorf("处理请求异常:%v", err)
+			}
 		}()
-		wsconn, err := upgrader.Upgrade(w, r, nil)
 
-		if err != nil {
-			this.Log.Errorf("Upgrade error（%+v） %v", r.Header, err)
+		// 检查连接数限制
+		if s.checkConnectionsLimit(w, r) {
+			s.log.Warnf("连接数已达上限(%d)，拒绝新连接 来源:%s", s.cnf.GetMaxConnections(), r.RemoteAddr)
+			http.Error(w, "服务器连接数已满", http.StatusServiceUnavailable)
 			return
 		}
 
+		wsconn := assert.ShouldCall3RE(upgrader.Upgrade, w, r, nil, "WebSocket升级失败 请求头:(%+v) 错误:", r.Header)
+
 		cn := conn.NewConn(wsconn, conn.Config[*websocket.Conn]{
-			Name:    this.Name,
-			Host:    fmt.Sprintf("%s:%d", this.Ip, this.Port),
-			Log:     this.Log,
-			OnWrite: this.onWriteFunc,
-			OnRead:  this.onReadFunc,
-			OnClose: this.onCloseFunc,
-			OnData:  this.Config.OnData,
+			Name:    s.cnf.Name,
+			Host:    fmt.Sprintf("%s:%d", s.cnf.Ip, s.cnf.Port),
+			Log:     s.log,
+			OnWrite: s.onWriteFunc,
+			OnRead:  s.onReadFunc,
+			OnClose: s.onCloseFunc,
+			OnData:  s.cnf.OnData,
 		})
+
 		this.lock.Lock()
-		this.Log.Infof("net server add net:%p", cn)
 		this.nets[cn] = true
+		this.connCount++
+		this.totalAccepted++
+		currentCount := this.connCount
+		this.Log.Infof("新连接建立:%p 当前连接数:%d 累计接受:%d", cn, currentCount, this.totalAccepted)
 		this.lock.Unlock()
+
 		this.OnConnect(cn)
 		cn.Start()
+
 		this.lock.Lock()
-		this.Log.Infof("net server del net:%p", cn)
 		delete(this.nets, cn)
+		this.connCount--
+		currentCount = this.connCount
+		this.Log.Infof("连接断开:%p 当前连接数:%d", cn, currentCount)
 		this.lock.Unlock()
+
 		this.OnClose(cn)
 	})
 
@@ -124,54 +117,69 @@ func (this *NetServer) RunNet(route string) error {
 	go func(errChan chan error) {
 		errChan <- this.httpServer.Serve(this.listener)
 	}(errChan)
-	this.Log.Infof("http starting")
+	this.Log.Infof("HTTP服务启动成功")
 	select {
 	case stopFinished := <-this.stopChan:
-		this.httpServer.Shutdown(context.Background())
+		this.Log.Infof("开始关闭服务器...")
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		this.httpServer.Shutdown(ctx)
+		this.closeAllConnections()
 		stopFinished <- struct{}{}
 		return nil
 	case err := <-errChan:
-		this.Log.Errorf("ListenAndServeErr: %s", err)
+		this.Log.Errorf("HTTP服务异常: %s", err)
 		return err
 	}
-	return nil
 }
 
-func (this *NetServer) HandleFunc(pattern string, handle func(w http.ResponseWriter, r *http.Request)) error {
-	this.mux.HandleFunc(pattern, handle)
-	return nil
+// checkConnectionsLimit 检查连接数限制
+func (s *WsNetServer) checkConnectionsLimit(w http.ResponseWriter, r *http.Request) bool {
+	// 锁的颗粒度控制
+	if s.cnf.GetMaxConnections() <= 0 {
+		return false
+	}
+
+	// 读锁, 避免并发修改, 提高效率
+	s.lock.RLock()
+	currentCount := s.connCount
+	s.lock.RUnlock()
+
+	if currentCount >= s.cnf.GetMaxConnections() {
+		// 写锁, 避免数据竞争
+		s.lock.Lock()
+		s.totalRejected++
+		s.lock.Unlock()
+		return true
+	}
+
+	return false
 }
 
-func (this *NetServer) Stop() {
-	stopDone := make(chan struct{}, 1)
-	this.stopChan <- stopDone
-	<-stopDone
-}
-
-func (this *NetServer) initPprof() {
-	if this.mux != nil {
-		this.mux.HandleFunc("/debug/pprof/", pprof.Index)
-		this.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		this.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		this.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		this.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+// initPprof 初始化pprof
+func (s *WsNetServer) initPprof() {
+	if s.mux != nil {
+		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
+		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		s.mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		s.mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 }
-
-func (this *NetServer) onCloseFunc(cn *websocket.Conn) error {
+func (s *WsNetServer) onCloseFunc(cn *websocket.Conn) error {
 	return cn.Close()
 }
 
-func (this *NetServer) onWriteFunc(cn *websocket.Conn, data []byte) error {
-	if err := cn.SetWriteDeadline(time.Now().Add(this.WriteTimeout)); err != nil {
-		this.Log.Warnf("SetWriteDeadline err:%s", err)
+func (s *WsNetServer) onWriteFunc(cn *websocket.Conn, data []byte) error {
+	if err := cn.SetWriteDeadline(time.Now().Add(s.cnf.WriteTimeout)); err != nil {
+		s.log.Warnf("SetWriteDeadline err:%s", err)
 	}
 	return cn.WriteMessage(websocket.BinaryMessage, data)
 }
 
-func (this *NetServer) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
-	if err := cn.SetReadDeadline(time.Now().Add(this.ReadTimeout)); err != nil {
-		this.Log.Warnf("SetReadDeadline err:%s", err)
+func (s *WsNetServer) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
+	if err := cn.SetReadDeadline(time.Now().Add(s.cnf.ReadTimeout)); err != nil {
+		s.log.Warnf("SetReadDeadline err:%s", err)
 	}
 	return cn.ReadMessage()
 }
