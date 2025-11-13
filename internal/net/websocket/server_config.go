@@ -7,21 +7,21 @@ import (
 )
 
 type ServerConfig struct {
-	Name            string             // 服务名称
-	Ip              string             // 服务ip
-	Port            int                // 服务端口
-	Route           string             // 路由
-	Pprof           bool               // 是否开启pprof
-	OnConnect       conn.OnConnectFunc // 连接建立时调用
-	OnData          conn.OnDataFunc    // 数据处理
-	OnClose         conn.OnCloseFunc   // 连接关闭时调用
-	WriteTimeout    time.Duration      // 写超时
-	ReadTimeout     time.Duration      // 读超时
-	IdleTimeOut     time.Duration      // 空闲超时
-	MaxConnections  int                // 最大连接数限制，0表示不限制
-	ReadBufferSize  int                // 读缓冲区大小，默认4096
-	WriteBufferSize int                // 写缓冲区大小，默认4096
-	Compression     bool               // 是否启用压缩，默认true
+	Name            string                         // 服务名称
+	Ip              string                         // 服务ip
+	Port            int                            // 服务端口
+	Route           string                         // 路由
+	Pprof           bool                           // 是否开启pprof
+	OnConnect       func(conn.IConn)               // 连接建立时调用
+	OnData          func(conn.IConn, []byte) error // 数据处理
+	OnClose         func(conn.IConn) error         // 连接关闭时调用
+	WriteTimeout    time.Duration                  // 写超时
+	ReadTimeout     time.Duration                  // 读超时
+	IdleTimeOut     time.Duration                  // 空闲超时
+	MaxConnections  int                            // 最大连接数限制，0表示不限制
+	ReadBufferSize  int                            // 读缓冲区大小，默认4096
+	WriteBufferSize int                            // 写缓冲区大小，默认4096
+	Compression     bool                           // 是否启用压缩，默认true
 }
 
 // GetMaxConnections 获取最大连接数限制

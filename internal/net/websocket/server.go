@@ -1,6 +1,7 @@
 package webSocket
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -64,9 +65,13 @@ func (s *WsNetServer) RunNet(route string) {
 
 	s.mux.HandleFunc(route+s.cnf.Route, func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			assert.MayTrue(r.Body != nil && r.Body.Close() != nil, func() {
+			if r.Body == nil {
+				return
+			}
+
+			if err := r.Body.Close(); err != nil {
 				s.log.Errorf("关闭请求体失败:%s", err)
-			})
+			}
 
 			if err := recover(); err != nil {
 				s.log.Errorf("处理请求异常:%v", err)
@@ -80,56 +85,122 @@ func (s *WsNetServer) RunNet(route string) {
 			return
 		}
 
+		// 升级为websocket
 		wsconn := assert.ShouldCall3RE(upgrader.Upgrade, w, r, nil, "WebSocket升级失败 请求头:(%+v) 错误:", r.Header)
 
-		cn := conn.NewConn(wsconn, conn.Config[*websocket.Conn]{
+		// 创建连接
+		cn := conn.NewConn(wsconn, conn.NetConfig[*websocket.Conn]{
 			Name:    s.cnf.Name,
 			Host:    fmt.Sprintf("%s:%d", s.cnf.Ip, s.cnf.Port),
-			Log:     s.log,
 			OnWrite: s.onWriteFunc,
 			OnRead:  s.onReadFunc,
 			OnClose: s.onCloseFunc,
 			OnData:  s.cnf.OnData,
 		})
 
-		this.lock.Lock()
-		this.nets[cn] = true
-		this.connCount++
-		this.totalAccepted++
-		currentCount := this.connCount
-		this.Log.Infof("新连接建立:%p 当前连接数:%d 累计接受:%d", cn, currentCount, this.totalAccepted)
-		this.lock.Unlock()
+		s.lock.Lock()
+		s.nets[cn] = true // 添加连接
+		s.connCount++
+		s.totalAccepted++
+		currentCount := s.connCount
+		s.log.Infof("新连接建立:%p 当前连接数:%d 累计接受:%d", cn, currentCount, s.totalAccepted)
+		s.lock.Unlock()
 
-		this.OnConnect(cn)
+		// 启动连接回调函数
+		s.cnf.OnConnect(cn)
 		cn.Start()
 
-		this.lock.Lock()
-		delete(this.nets, cn)
-		this.connCount--
-		currentCount = this.connCount
-		this.Log.Infof("连接断开:%p 当前连接数:%d", cn, currentCount)
-		this.lock.Unlock()
+		s.lock.Lock()
+		delete(s.nets, cn)
+		s.connCount--
+		currentCount = s.connCount
+		s.log.Infof("连接断开:%p 当前连接数:%d", cn, currentCount)
+		s.lock.Unlock()
 
-		this.OnClose(cn)
+		// 启动关闭回调函数
+		assert.ShouldCall1E(s.cnf.OnClose, cn, "关闭连接失败")
 	})
 
 	errChan := make(chan error)
 	go func(errChan chan error) {
-		errChan <- this.httpServer.Serve(this.listener)
+		errChan <- s.httpServer.Serve(s.listener)
 	}(errChan)
-	this.Log.Infof("HTTP服务启动成功")
+
+	s.log.Infof("HTTP服务启动成功")
+
 	select {
-	case stopFinished := <-this.stopChan:
-		this.Log.Infof("开始关闭服务器...")
+	case stopFinished := <-s.stopChan:
+		s.log.Infof("开始关闭服务器...")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		this.httpServer.Shutdown(ctx)
-		this.closeAllConnections()
+		assert.ShouldCall1E(s.httpServer.Shutdown, ctx, "http关闭连接失败")
+		s.closeAllConnections()
 		stopFinished <- struct{}{}
-		return nil
 	case err := <-errChan:
-		this.Log.Errorf("HTTP服务异常: %s", err)
-		return err
+		s.log.Errorf("HTTP服务异常: %s", err)
+	}
+}
+
+// HandleFunc 注册路由
+func (s *WsNetServer) HandleFunc(pattern string, handle func(w http.ResponseWriter, r *http.Request)) {
+	s.mux.HandleFunc(pattern, handle)
+}
+
+// Stop 停止服务器
+func (s *WsNetServer) Stop() {
+	stopDone := make(chan struct{}, 1)
+	s.stopChan <- stopDone
+	<-stopDone
+	s.log.Infof("服务器已停止")
+}
+
+// GetConnectionCount 获取当前连接数
+func (s *WsNetServer) GetConnectionCount() int {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.connCount
+}
+
+// ServerStats 服务器统计信息
+type ServerStats struct {
+	CurrentConnections int    // 当前连接数
+	TotalAccepted      uint64 // 累计接受的连接数
+	TotalRejected      uint64 // 累计拒绝的连接数
+}
+
+// GetStats 获取服务器统计信息
+func (s *WsNetServer) GetStats() ServerStats {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return ServerStats{
+		CurrentConnections: s.connCount,
+		TotalAccepted:      s.totalAccepted,
+		TotalRejected:      s.totalRejected,
+	}
+}
+
+// BroadcastMessage 广播消息给所有连接
+func (s *WsNetServer) BroadcastMessage(data []byte) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	for cn := range s.nets {
+		cn.Write(data)
+	}
+}
+
+// BroadcastMessageExclude 广播消息给除指定连接外的所有连接
+func (s *WsNetServer) BroadcastMessageExclude(data []byte, excludeConn conn.IConn) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	for cn := range s.nets {
+		if cn == excludeConn {
+			continue
+		}
+
+		cn.Write(data)
 	}
 }
 
@@ -166,20 +237,37 @@ func (s *WsNetServer) initPprof() {
 		s.mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 }
+
+// onCloseFunc 关闭连接处理函数
 func (s *WsNetServer) onCloseFunc(cn *websocket.Conn) error {
 	return cn.Close()
 }
 
+// onWriteFunc 写数据处理函数
 func (s *WsNetServer) onWriteFunc(cn *websocket.Conn, data []byte) error {
-	if err := cn.SetWriteDeadline(time.Now().Add(s.cnf.WriteTimeout)); err != nil {
-		s.log.Warnf("SetWriteDeadline err:%s", err)
-	}
+	assert.ShouldCall1E(cn.SetWriteDeadline, time.Now().Add(s.cnf.GetWriteTimeout()), "SetWriteDeadline err:")
 	return cn.WriteMessage(websocket.BinaryMessage, data)
 }
 
+// onReadFunc 读取数据处理函数
 func (s *WsNetServer) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
-	if err := cn.SetReadDeadline(time.Now().Add(s.cnf.ReadTimeout)); err != nil {
-		s.log.Warnf("SetReadDeadline err:%s", err)
-	}
+	assert.ShouldCall1E(cn.SetReadDeadline, time.Now().Add(s.cnf.GetReadTimeout()), "SetReadDeadline err:")
 	return cn.ReadMessage()
+}
+
+// closeAllConnections 关闭所有连接
+func (s *WsNetServer) closeAllConnections() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.log.Infof("开始关闭所有连接，当前连接数:%d", len(s.nets))
+
+	for cn := range s.nets {
+		assert.ShouldCall0E(cn.Close, "关闭连接失败")
+	}
+
+	// 重置连接数
+	s.nets = make(map[*conn.Conn[*websocket.Conn]]bool)
+	s.connCount = 0
+	s.log.Infof("所有连接已关闭")
 }
