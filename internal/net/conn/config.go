@@ -1,6 +1,7 @@
 package conn
 
 import (
+	"errors"
 	"time"
 )
 
@@ -10,45 +11,49 @@ const DefaultWriteTimeOut = time.Second * 30
 // DefaultReadTimeOut 默认读超时
 const DefaultReadTimeOut = time.Minute * 5
 
-// OnConnectFunc 连接建立时调用
-type OnConnectFunc[T any] func(conn T)
-
-// OnWriteFunc 写数据处理
-type OnWriteFunc[T any] func(conn T, raw []byte) error
-
-// OnReadFunc 读数据处理
-type OnReadFunc[T any] func(conn T) (int, []byte, error)
-
-// OnDataFunc 数据处理
-type OnDataFunc func(conn IConn, raw []byte) error
-
-// OnCloseFunc 关闭处理
-type OnCloseFunc[T any] func(conn T) error
-
-// IConn 连接接口
-type IConn interface {
-	// Start 启动
-	Start()
-	// Write 写数据
-	Write(b []byte)
-	// Close 关闭
-	Close() error
-	// SetId 设置id
-	SetId(id uint64)
-	// GetId 获取id
-	GetId() uint64
-}
-
-// NetConfig 配置
+// NetConfig 网络连接配置
 type NetConfig[T any] struct {
-	Id           uint64         //  id
+	Id           uint64         // 连接唯一标识
 	Name         string         // 服务名称
 	Host         string         // 服务地址
-	OnWrite      OnWriteFunc[T] // 写数据处理
-	OnRead       OnReadFunc[T]  // 读数据处理
-	OnClose      OnCloseFunc[T] // 关闭处理
-	OnData       OnDataFunc     // 数据处理
-	WriteTimeout time.Duration  // 写超时
-	ReadTimeout  time.Duration  // 读超时
-	IdleTimeOut  time.Duration  // 空闲超时
+	OnWrite      OnWriteFunc[T] // 写数据处理回调(必须)
+	OnRead       OnReadFunc[T]  // 读数据处理回调(必须)
+	OnClose      OnCloseFunc[T] // 关闭处理回调(可选)
+	OnData       OnDataFunc     // 数据处理回调(必须)
+	WriteTimeout time.Duration  // 写超时时间(默认 30s)
+	ReadTimeout  time.Duration  // 读超时时间(默认 5m)
+	IdleTimeOut  time.Duration  // 空闲超时时间(0 表示不检测)
+}
+
+// Validate 验证配置有效性
+func (c *NetConfig[T]) Validate() error {
+	if c.OnWrite == nil {
+		return errors.New("OnWrite回调函数未设置")
+	}
+
+	if c.OnRead == nil {
+		return errors.New("OnRead回调函数没有设置")
+	}
+
+	if c.OnData == nil {
+		return errors.New("OnData回调函数没有设置")
+	}
+
+	return nil
+}
+
+// GetWriteTimeout 获取写超时
+func (c *NetConfig[T]) GetWriteTimeout() time.Duration {
+	if c.WriteTimeout == 0 {
+		c.WriteTimeout = DefaultWriteTimeOut
+	}
+	return c.WriteTimeout
+}
+
+// GetReadTimeout 获取读超时
+func (c *NetConfig[T]) GetReadTimeout() time.Duration {
+	if c.ReadTimeout == 0 {
+		c.ReadTimeout = DefaultReadTimeOut
+	}
+	return c.ReadTimeout
 }
