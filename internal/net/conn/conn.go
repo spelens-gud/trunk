@@ -201,7 +201,7 @@ func (s *Conn[T]) read() {
 			}
 
 			// 调用数据处理函数
-			assert.ShouldCall2E(s.cnf.OnData, s, bs, "处理数据错误")
+			assert.ShouldCall2E(s.cnf.OnData, IConn(s), bs, "处理数据错误")
 		}
 	}
 }
