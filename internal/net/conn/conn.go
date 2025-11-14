@@ -316,3 +316,8 @@ func (s *Conn[T]) GetLastActiveTime() time.Time {
 	defer s.lock.RUnlock()
 	return s.lastActive
 }
+
+// GetContext 获取连接的 context
+func (s *Conn[T]) GetContext() context.Context {
+	return s.ctx
+}

@@ -2,6 +2,7 @@ package webSocket
 
 import (
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -41,6 +42,7 @@ func RateLimitMiddleware(maxRequests int, window time.Duration) Middleware {
 		lastTime time.Time // 最后请求时间
 	}
 
+	var mu sync.Mutex
 	clients := make(map[string]*client)
 
 	return func(next http.HandlerFunc) http.HandlerFunc {
@@ -48,6 +50,7 @@ func RateLimitMiddleware(maxRequests int, window time.Duration) Middleware {
 			ip := r.RemoteAddr
 			now := time.Now()
 
+			mu.Lock()
 			if c, exists := clients[ip]; exists {
 				// 检查时间间隔
 				if now.Sub(c.lastTime) > window {
@@ -56,6 +59,7 @@ func RateLimitMiddleware(maxRequests int, window time.Duration) Middleware {
 				} else {
 					c.count++
 					if c.count > maxRequests {
+						mu.Unlock()
 						http.Error(w, "请求过于频繁", http.StatusTooManyRequests)
 						return
 					}
@@ -63,6 +67,7 @@ func RateLimitMiddleware(maxRequests int, window time.Duration) Middleware {
 			} else {
 				clients[ip] = &client{count: 1, lastTime: now}
 			}
+			mu.Unlock()
 
 			next(w, r)
 		}

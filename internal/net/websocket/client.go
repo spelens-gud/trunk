@@ -31,6 +31,10 @@ func (c *WsNetClient) Start() {
 	go c.conn.Start()
 	if c.cnf.PingTicker > 0 {
 		c.pingTicker = time.NewTicker(c.cnf.PingTicker)
+	} else {
+		// 如果没有设置 PingTicker，创建一个永不触发的 ticker
+		c.pingTicker = time.NewTicker(time.Hour * 24 * 365)
+		c.pingTicker.Stop()
 	}
 	for {
 		select {
@@ -118,6 +122,7 @@ func (c *WsNetClient) Daily() error {
 		return err
 	}
 	c.conn = conn.NewConn(con, c.cnf.NetConfig)
+	c.conn.SetLogger(c.log) // 设置 logger
 	c.isStop = false
 	c.isFirstPing = false
 	c.log.Infof("连接建立成功: %s", c.cnf.Host)

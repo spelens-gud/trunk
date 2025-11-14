@@ -86,7 +86,7 @@ func (s *WsNetServer) RunNet(route string) {
 		}
 
 		// 升级为websocket
-		wsconn := assert.ShouldCall3RE(upgrader.Upgrade, w, r, nil, "WebSocket升级失败 请求头:(%+v) 错误:", r.Header)
+		wsconn := assert.ShouldCall3RE(upgrader.Upgrade, w, r, nil, "WebSocket升级失败 请求头:", r.Header)
 
 		// 创建连接
 		cn := conn.NewConn(wsconn, conn.NetConfig[*websocket.Conn]{
@@ -97,6 +97,7 @@ func (s *WsNetServer) RunNet(route string) {
 			OnClose: s.onCloseFunc,
 			OnData:  s.cnf.OnData,
 		})
+		cn.SetLogger(s.log) // 设置 logger
 
 		s.lock.Lock()
 		s.nets[cn] = true // 添加连接
@@ -108,17 +109,25 @@ func (s *WsNetServer) RunNet(route string) {
 
 		// 启动连接回调函数
 		s.cnf.OnConnect(cn)
+
+		// 启动连接的读写循环
 		cn.Start()
 
+		// 等待连接关闭（通过监听 context）
+		<-cn.GetContext().Done()
+
 		s.lock.Lock()
-		delete(s.nets, cn)
-		s.connCount--
-		currentCount = s.connCount
-		s.log.Infof("连接断开:%p 当前连接数:%d", cn, currentCount)
+		// 只有当连接还在 map 中时才删除和减少计数
+		if _, exists := s.nets[cn]; exists {
+			delete(s.nets, cn)
+			s.connCount--
+			currentCount := s.connCount
+			s.log.Infof("连接断开:%p 当前连接数:%d", cn, currentCount)
+		}
 		s.lock.Unlock()
 
 		// 启动关闭回调函数
-		assert.ShouldCall1E(s.cnf.OnClose, cn, "关闭连接失败")
+		assert.ShouldCall1E[conn.IConn](s.cnf.OnClose, cn, "关闭连接失败")
 	})
 
 	errChan := make(chan error)
