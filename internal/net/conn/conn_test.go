@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/logger"
 )
 
 // mockConn 模拟连接

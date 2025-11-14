@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/logger"
 	"go.uber.org/zap"
 )
 
