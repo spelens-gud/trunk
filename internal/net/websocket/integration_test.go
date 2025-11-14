@@ -116,7 +116,10 @@ func TestIntegration_ServerClientCommunication(t *testing.T) {
 	}
 
 	// 清理
-	client.Close()
+	if err := client.Close(); err != nil {
+		return
+	}
+
 	server.Stop()
 }
 
