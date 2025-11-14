@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -188,7 +189,13 @@ func (s *Conn[T]) read() {
 
 		// 读数据
 		if _, bs, err := s.cnf.OnRead(s.conn); err != nil {
-			s.log.Warnf("读数据错误: %v", err)
+			// 检查是否是正常关闭导致的错误
+			assert.Then(s.isNormalCloseError(err)).Do(func() {
+				s.log.Debugf("连接正常关闭: %v", err)
+			}).Else(func() {
+				s.log.Warnf("读数据错误: %v", err)
+			})
+
 			assert.ShouldCall0E(s.Close, "conn 关闭错误")
 			return
 		} else {
@@ -320,4 +327,31 @@ func (s *Conn[T]) GetLastActiveTime() time.Time {
 // GetContext 获取连接的 context
 func (s *Conn[T]) GetContext() context.Context {
 	return s.ctx
+}
+
+// isNormalCloseError 判断是否是正常关闭导致的错误
+func (s *Conn[T]) isNormalCloseError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+	// 常见的正常关闭错误信息
+	normalCloseErrors := []string{
+		"use of closed network connection",
+		"close 1000",               // 正常关闭
+		"close 1001",               // 端点离开
+		"close 1006",               // 异常关闭（但通常是正常的连接断开）
+		"unexpected EOF",           // 连接被对端关闭
+		"connection reset by peer", // 连接被对端重置
+		"broken pipe",              // 管道破裂
+	}
+
+	for _, normalErr := range normalCloseErrors {
+		if strings.Contains(errStr, normalErr) {
+			return true
+		}
+	}
+
+	return false
 }
