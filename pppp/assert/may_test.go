@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/spelens-gud/trunk/internal/assert"
+	`github.com/spelens-gud/assert`
 )
 
 // TestMay 测试 May 函数

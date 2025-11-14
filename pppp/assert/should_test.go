@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/spelens-gud/trunk/internal/assert"
+	`github.com/spelens-gud/assert`
 )
 
 // ============ 泛型函数调用测试 ============

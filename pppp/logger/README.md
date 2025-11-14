@@ -40,31 +40,31 @@ go get -u gopkg.in/natefinch/lumberjack.v2
 package main
 
 import (
-    "github.com/spelens-gud/trunk/internal/logger"
-    "go.uber.org/zap"
+	"github.com/spelens-gud/trunk/pkg/logger"
+	"go.uber.org/zap"
 )
 
 func main() {
-    // 创建日志配置
-    config := &logger.Config{
-        ServiceName: "user-service",
-        Environment: "dev",
-        Level:       "info",
-        Console:     true,
-        File:        true,
-        FilePath:    "./logs",
-    }
+	// 创建日志配置
+	config := &logger.Config{
+		ServiceName: "user-service",
+		Environment: "dev",
+		Level:       "info",
+		Console:     true,
+		File:        true,
+		FilePath:    "./logs",
+	}
 
-    // 创建 logger
-    log, err := logger.NewLogger(config)
-    if err != nil {
-        panic(err)
-    }
-    defer log.Sync()
+	// 创建 logger
+	log, err := logger.NewLogger(config)
+	if err != nil {
+		panic(err)
+	}
+	defer log.Sync()
 
-    // 输出日志
-    log.Info("服务启动成功")
-    log.Infof("监听端口: %d", 8080)
+	// 输出日志
+	log.Info("服务启动成功")
+	log.Infof("监听端口: %d", 8080)
 }
 ```
 
@@ -258,7 +258,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/trunk/pkg/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -347,7 +347,7 @@ func initLogger() {
 package cmd
 
 import (
-	"github.com/spelens-gud/trunk/internal/logger"
+	"github.com/spelens-gud/trunk/pkg/logger"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
