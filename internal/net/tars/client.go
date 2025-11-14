@@ -10,20 +10,8 @@ import (
 	"github.com/spelens-gud/logger"
 )
 
-// ClientConfig TARS客户端配置
-type ClientConfig struct {
-	Name             string
-	Host             string
-	Obj              string // TARS对象名
-	ReconnectEnabled bool
-	ReconnectDelay   time.Duration
-	MaxReconnect     int
-	OnReconnect      func(client *TarsNetClient)
-	OnDisconnect     func(client *TarsNetClient)
-}
-
-// TarsNetClient TARS客户端
-type TarsNetClient struct {
+// NetTarsClient TARS客户端
+type NetTarsClient struct {
 	cnf            *ClientConfig
 	log            logger.ILogger
 	comm           *tars.Communicator
@@ -34,19 +22,19 @@ type TarsNetClient struct {
 }
 
 // New 初始化客户端
-func (c *TarsNetClient) New() {
+func (c *NetTarsClient) New() {
 	c.stopChan = make(chan struct{})
 	c.isStop = true
 	c.comm = tars.NewCommunicator()
 }
 
 // Start 启动客户端
-func (c *TarsNetClient) Start() error {
+func (c *NetTarsClient) Start() error {
 	return c.connect()
 }
 
 // connect 建立连接
-func (c *TarsNetClient) connect() error {
+func (c *NetTarsClient) connect() error {
 	c.mu.Lock()
 	c.isStop = false
 	c.mu.Unlock()
@@ -56,7 +44,7 @@ func (c *TarsNetClient) connect() error {
 }
 
 // handleDisconnect 处理断开连接
-func (c *TarsNetClient) handleDisconnect() {
+func (c *NetTarsClient) handleDisconnect() {
 	c.mu.Lock()
 	c.isStop = true
 	c.mu.Unlock()
@@ -71,7 +59,7 @@ func (c *TarsNetClient) handleDisconnect() {
 }
 
 // reconnect 重连
-func (c *TarsNetClient) reconnect() {
+func (c *NetTarsClient) reconnect() {
 	count := atomic.LoadInt32(&c.reconnectCount)
 
 	if c.cnf.MaxReconnect > 0 && int(count) >= c.cnf.MaxReconnect {
@@ -95,7 +83,7 @@ func (c *TarsNetClient) reconnect() {
 }
 
 // Close 关闭客户端
-func (c *TarsNetClient) Close() error {
+func (c *NetTarsClient) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -111,24 +99,24 @@ func (c *TarsNetClient) Close() error {
 }
 
 // IsConnected 检查连接状态
-func (c *TarsNetClient) IsConnected() bool {
+func (c *NetTarsClient) IsConnected() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return !c.isStop
 }
 
 // GetReconnectCount 获取重连次数
-func (c *TarsNetClient) GetReconnectCount() int32 {
+func (c *NetTarsClient) GetReconnectCount() int32 {
 	return atomic.LoadInt32(&c.reconnectCount)
 }
 
 // GetCommunicator 获取通信器
-func (c *TarsNetClient) GetCommunicator() *tars.Communicator {
+func (c *NetTarsClient) GetCommunicator() *tars.Communicator {
 	return c.comm
 }
 
 // StringToProxy 获取代理对象
-func (c *TarsNetClient) StringToProxy(obj string, proxy interface{}) error {
+func (c *NetTarsClient) StringToProxy(obj string, proxy interface{}) error {
 	if c.comm == nil {
 		return fmt.Errorf("通信器未初始化")
 	}

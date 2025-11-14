@@ -4,8 +4,7 @@ import (
 	"crypto/tls"
 	"testing"
 
-	"trunk/internal/net/conn"
-	"trunk/pkg/logger"
+	"github.com/spelens-gud/logger"
 )
 
 func TestQuicNetClient_New(t *testing.T) {
@@ -14,12 +13,10 @@ func TestQuicNetClient_New(t *testing.T) {
 		Console: true,
 	})
 
-	client := &QuicNetClient{
+	client := &NetQuicClient{
 		cnf: &ClientConfig{
-			NetConfig: conn.NetConfig[quic.Connection]{
-				Name: "test-client",
-				Host: "localhost:8443",
-			},
+			Name: "test-client",
+			Host: "localhost:8443",
 			TLSConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
@@ -44,12 +41,10 @@ func TestQuicNetClient_IsConnected(t *testing.T) {
 		Console: true,
 	})
 
-	client := &QuicNetClient{
+	client := &NetQuicClient{
 		cnf: &ClientConfig{
-			NetConfig: conn.NetConfig[quic.Connection]{
-				Name: "test-client",
-				Host: "localhost:8443",
-			},
+			Name: "test-client",
+			Host: "localhost:8443",
 		},
 		log:    log,
 		isStop: true,
@@ -68,12 +63,10 @@ func TestQuicNetClient_GetReconnectCount(t *testing.T) {
 		Console: true,
 	})
 
-	client := &QuicNetClient{
+	client := &NetQuicClient{
 		cnf: &ClientConfig{
-			NetConfig: conn.NetConfig[quic.Connection]{
-				Name: "test-client",
-				Host: "localhost:8443",
-			},
+			Name: "test-client",
+			Host: "localhost:8443",
 		},
 		log:            log,
 		reconnectCount: 3,

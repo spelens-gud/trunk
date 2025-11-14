@@ -22,7 +22,7 @@ func TestTarsNetServer_New(t *testing.T) {
 		Console: true,
 	})
 
-	server := &TarsNetServer{
+	server := &NetTarsServer{
 		cnf: &ServerConfig{
 			Name:     "test-server",
 			Ip:       "127.0.0.1",
@@ -49,7 +49,7 @@ func TestTarsNetServer_Stats(t *testing.T) {
 		Console: true,
 	})
 
-	server := &TarsNetServer{
+	server := &NetTarsServer{
 		cnf: &ServerConfig{
 			Name: "test-server",
 			Ip:   "127.0.0.1",

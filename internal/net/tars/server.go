@@ -1,7 +1,6 @@
 package tars
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -10,24 +9,8 @@ import (
 	"github.com/spelens-gud/logger"
 )
 
-// ServerConfig TARS服务器配置
-type ServerConfig struct {
-	Name           string
-	Ip             string
-	Port           int
-	Protocol       string // tcp, udp
-	MaxConnections int
-	OnConnect      func(ctx context.Context)
-	OnDisconnect   func(ctx context.Context)
-}
-
-// GetMaxConnections 获取最大连接数
-func (c *ServerConfig) GetMaxConnections() int {
-	return c.MaxConnections
-}
-
-// TarsNetServer TARS服务器
-type TarsNetServer struct {
+// NetTarsServer TARS服务器
+type NetTarsServer struct {
 	cnf           *ServerConfig
 	log           logger.ILogger
 	comm          *tars.Communicator
@@ -46,14 +29,14 @@ type ServerStats struct {
 }
 
 // New 初始化服务器
-func (s *TarsNetServer) New() {
+func (s *NetTarsServer) New() {
 	s.stopChan = make(chan chan struct{})
 	s.servants = sync.Map{}
 	s.comm = tars.NewCommunicator()
 }
 
 // Start 启动服务器
-func (s *TarsNetServer) Start() error {
+func (s *NetTarsServer) Start() error {
 	addr := fmt.Sprintf("%s:%d", s.cnf.Ip, s.cnf.Port)
 	s.log.Infof("TARS服务器启动成功: %s", addr)
 
@@ -62,19 +45,19 @@ func (s *TarsNetServer) Start() error {
 }
 
 // AddServant 添加Servant
-func (s *TarsNetServer) AddServant(obj string, servant interface{}) {
+func (s *NetTarsServer) AddServant(obj string, servant interface{}) {
 	s.servants.Store(obj, servant)
 	s.log.Infof("注册TARS Servant: %s", obj)
 }
 
 // handleStop 处理停止信号
-func (s *TarsNetServer) handleStop() {
+func (s *NetTarsServer) handleStop() {
 	stopDone := <-s.stopChan
 	close(stopDone)
 }
 
 // Stop 停止服务器
-func (s *TarsNetServer) Stop() {
+func (s *NetTarsServer) Stop() {
 	stopDone := make(chan struct{}, 1)
 	s.stopChan <- stopDone
 	<-stopDone
@@ -82,7 +65,7 @@ func (s *TarsNetServer) Stop() {
 }
 
 // GetStats 获取统计信息
-func (s *TarsNetServer) GetStats() ServerStats {
+func (s *NetTarsServer) GetStats() ServerStats {
 	return ServerStats{
 		CurrentConnections: int64(atomic.LoadInt32(&s.connCount)),
 		TotalAccepted:      atomic.LoadInt64(&s.totalAccepted),
@@ -91,6 +74,6 @@ func (s *TarsNetServer) GetStats() ServerStats {
 }
 
 // GetConnectionCount 获取当前连接数
-func (s *TarsNetServer) GetConnectionCount() int32 {
+func (s *NetTarsServer) GetConnectionCount() int32 {
 	return atomic.LoadInt32(&s.connCount)
 }

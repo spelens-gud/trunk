@@ -4,35 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/quic-go/quic-go"
 	"github.com/spelens-gud/logger"
-	"github.com/spelens-gud/trunk/internal/net/conn"
-	"golang.org/x/net/quic"
 )
 
-// ClientConfig QUIC客户端配置
-type ClientConfig struct {
-	NetConfig        conn.NetConfig[quic.Connection]
-	TLSConfig        *tls.Config
-	PingTicker       time.Duration
-	PingFunc         func(client *QuicNetClient)
-	FirstPingFunc    func(client *QuicNetClient)
-	ReconnectEnabled bool
-	ReconnectDelay   time.Duration
-	MaxReconnect     int
-	OnReconnect      func(client *QuicNetClient)
-	OnDisconnect     func(client *QuicNetClient)
-}
-
-// QuicNetClient QUIC客户端
-type QuicNetClient struct {
+// NetQuicClient QUIC客户端
+type NetQuicClient struct {
 	cnf            *ClientConfig
 	log            logger.ILogger
-	conn           quic.Connection
-	stream         quic.Stream
+	conn           *quic.Conn
+	stream         *quic.Stream
 	stopChan       chan struct{}
 	isStop         bool
 	reconnectCount int32
@@ -40,33 +26,41 @@ type QuicNetClient struct {
 }
 
 // New 初始化客户端
-func (c *QuicNetClient) New() {
+func (c *NetQuicClient) New() {
 	c.stopChan = make(chan struct{})
 	c.isStop = true
 }
 
 // Start 启动客户端
-func (c *QuicNetClient) Start() error {
+func (c *NetQuicClient) Start() error {
 	return c.connect()
 }
 
 // connect 建立连接
-func (c *QuicNetClient) connect() error {
+func (c *NetQuicClient) connect() error {
 	ctx := context.Background()
+
+	tlsConf := c.cnf.TLSConfig
+	if tlsConf == nil {
+		tlsConf = &tls.Config{
+			InsecureSkipVerify: true,
+			NextProtos:         []string{"quic-trunk"},
+		}
+	}
 
 	quicConfig := &quic.Config{
 		MaxIdleTimeout:  30 * time.Second,
 		KeepAlivePeriod: 10 * time.Second,
 	}
 
-	conn, err := quic.DialAddr(ctx, c.cnf.NetConfig.Host, c.cnf.TLSConfig, quicConfig)
+	conn, err := quic.DialAddr(ctx, c.cnf.Host, tlsConf, quicConfig)
 	if err != nil {
 		return fmt.Errorf("连接失败: %w", err)
 	}
 
 	stream, err := conn.OpenStreamSync(ctx)
 	if err != nil {
-		conn.CloseWithError(0, "")
+		_ = conn.CloseWithError(0, "")
 		return fmt.Errorf("打开流失败: %w", err)
 	}
 
@@ -76,7 +70,7 @@ func (c *QuicNetClient) connect() error {
 	c.isStop = false
 	c.mu.Unlock()
 
-	c.log.Infof("QUIC客户端连接成功: %s", c.cnf.NetConfig.Host)
+	c.log.Infof("QUIC客户端连接成功: %s", c.cnf.Host)
 
 	if c.cnf.FirstPingFunc != nil {
 		c.cnf.FirstPingFunc(c)
@@ -89,9 +83,7 @@ func (c *QuicNetClient) connect() error {
 }
 
 // readLoop 读取数据循环
-func (c *QuicNetClient) readLoop() {
-	buf := make([]byte, 4096)
-
+func (c *NetQuicClient) readLoop() {
 	for {
 		if c.isStop {
 			return
@@ -105,18 +97,36 @@ func (c *QuicNetClient) readLoop() {
 			return
 		}
 
-		n, err := stream.Read(buf)
-		if err != nil {
-			c.log.Errorf("读取数据失败: %v", err)
+		// 读取消息长度（4字节）
+		lenBuf := make([]byte, 4)
+		if _, err := io.ReadFull(stream, lenBuf); err != nil {
+			if err != io.EOF && !c.isStop {
+				c.log.Errorf("读取消息长度失败: %v", err)
+			}
 			c.handleDisconnect()
 			return
 		}
 
-		if c.cnf.NetConfig.OnData != nil {
-			data := make([]byte, n)
-			copy(data, buf[:n])
+		// 解析消息长度
+		msgLen := uint32(lenBuf[0])<<24 | uint32(lenBuf[1])<<16 | uint32(lenBuf[2])<<8 | uint32(lenBuf[3])
+		if msgLen == 0 || msgLen > 1024*1024 { // 最大1MB
+			c.log.Errorf("无效的消息长度: %d", msgLen)
+			c.handleDisconnect()
+			return
+		}
 
-			if err := c.cnf.NetConfig.OnData(nil, data); err != nil {
+		// 读取消息内容
+		data := make([]byte, msgLen)
+		if _, err := io.ReadFull(stream, data); err != nil {
+			if err != io.EOF && !c.isStop {
+				c.log.Errorf("读取消息内容失败: %v", err)
+			}
+			c.handleDisconnect()
+			return
+		}
+
+		if c.cnf.OnData != nil {
+			if err := c.cnf.OnData(c, data); err != nil {
 				c.log.Errorf("数据处理失败: %v", err)
 			}
 		}
@@ -124,7 +134,7 @@ func (c *QuicNetClient) readLoop() {
 }
 
 // pingLoop 心跳循环
-func (c *QuicNetClient) pingLoop() {
+func (c *NetQuicClient) pingLoop() {
 	if c.cnf.PingTicker <= 0 {
 		return
 	}
@@ -148,7 +158,7 @@ func (c *QuicNetClient) pingLoop() {
 }
 
 // handleDisconnect 处理断开连接
-func (c *QuicNetClient) handleDisconnect() {
+func (c *NetQuicClient) handleDisconnect() {
 	c.mu.Lock()
 	c.isStop = true
 	c.mu.Unlock()
@@ -163,7 +173,7 @@ func (c *QuicNetClient) handleDisconnect() {
 }
 
 // reconnect 重连
-func (c *QuicNetClient) reconnect() {
+func (c *NetQuicClient) reconnect() {
 	count := atomic.LoadInt32(&c.reconnectCount)
 
 	if c.cnf.MaxReconnect > 0 && int(count) >= c.cnf.MaxReconnect {
@@ -187,20 +197,37 @@ func (c *QuicNetClient) reconnect() {
 }
 
 // Write 写入数据
-func (c *QuicNetClient) Write(data []byte) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+func (c *NetQuicClient) Write(data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if c.stream == nil {
 		return fmt.Errorf("流未连接")
 	}
 
-	_, err := c.stream.Write(data)
-	return err
+	// 写入消息长度（4字节）
+	msgLen := uint32(len(data))
+	lenBuf := []byte{
+		byte(msgLen >> 24),
+		byte(msgLen >> 16),
+		byte(msgLen >> 8),
+		byte(msgLen),
+	}
+
+	if _, err := c.stream.Write(lenBuf); err != nil {
+		return fmt.Errorf("写入消息长度失败: %w", err)
+	}
+
+	// 写入消息内容
+	if _, err := c.stream.Write(data); err != nil {
+		return fmt.Errorf("写入消息内容失败: %w", err)
+	}
+
+	return nil
 }
 
 // Close 关闭客户端
-func (c *QuicNetClient) Close() error {
+func (c *NetQuicClient) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -216,7 +243,7 @@ func (c *QuicNetClient) Close() error {
 	}
 
 	if c.conn != nil {
-		c.conn.CloseWithError(0, "客户端关闭")
+		_ = c.conn.CloseWithError(0, "客户端关闭")
 	}
 
 	c.log.Infof("QUIC客户端已关闭")
@@ -224,13 +251,13 @@ func (c *QuicNetClient) Close() error {
 }
 
 // IsConnected 检查连接状态
-func (c *QuicNetClient) IsConnected() bool {
+func (c *NetQuicClient) IsConnected() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return !c.isStop && c.conn != nil
+	return !c.isStop
 }
 
 // GetReconnectCount 获取重连次数
-func (c *QuicNetClient) GetReconnectCount() int32 {
+func (c *NetQuicClient) GetReconnectCount() int32 {
 	return atomic.LoadInt32(&c.reconnectCount)
 }

@@ -18,14 +18,14 @@ func generateTestTLSConfig() *tls.Config {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 	}
-	certDER, _ := x509.CreateCertificate(rand.Reader, &template, &template, &key.Public(), key)
+	certDER, _ := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
 	tlsCert, _ := tls.X509KeyPair(certPEM, keyPEM)
 	return &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
-		NextProtos:   []string{"quic-test"},
+		NextProtos:   []string{"quic-trunk"},
 	}
 }
 
@@ -50,7 +50,7 @@ func TestQuicNetServer_New(t *testing.T) {
 		Console: true,
 	})
 
-	server := &QuicNetServer{
+	server := &NetQuicServer{
 		cnf: &ServerConfig{
 			Name:      "test-server",
 			Ip:        "127.0.0.1",

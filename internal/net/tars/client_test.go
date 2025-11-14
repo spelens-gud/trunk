@@ -12,7 +12,7 @@ func TestTarsNetClient_New(t *testing.T) {
 		Console: true,
 	})
 
-	client := &TarsNetClient{
+	client := &NetTarsClient{
 		cnf: &ClientConfig{
 			Name: "test-client",
 			Host: "localhost:10000",
@@ -42,7 +42,7 @@ func TestTarsNetClient_IsConnected(t *testing.T) {
 		Console: true,
 	})
 
-	client := &TarsNetClient{
+	client := &NetTarsClient{
 		cnf: &ClientConfig{
 			Name: "test-client",
 			Host: "localhost:10000",
@@ -64,7 +64,7 @@ func TestTarsNetClient_GetReconnectCount(t *testing.T) {
 		Console: true,
 	})
 
-	client := &TarsNetClient{
+	client := &NetTarsClient{
 		cnf: &ClientConfig{
 			Name: "test-client",
 			Host: "localhost:10000",
