@@ -9,7 +9,7 @@ import (
 	"github.com/spelens-gud/trunk/internal/net/conn"
 )
 
-type WsNetClient struct {
+type NetWsClient struct {
 	conn           *conn.Conn[*websocket.Conn] // 连接
 	log            logger.ILogger              // 日志
 	cnf            *ClientConfig               // 配置
@@ -21,13 +21,13 @@ type WsNetClient struct {
 }
 
 // New 创建ws客户端
-func (c *WsNetClient) New() {
+func (c *NetWsClient) New() {
 	c.stopChan = make(chan chan struct{})
 	c.isStop = true
 }
 
 // Start 运行
-func (c *WsNetClient) Start() {
+func (c *NetWsClient) Start() {
 	go c.conn.Start()
 	if c.cnf.PingTicker > 0 {
 		c.pingTicker = time.NewTicker(c.cnf.PingTicker)
@@ -60,7 +60,7 @@ func (c *WsNetClient) Start() {
 }
 
 // StartWithReconnect 启动客户端并支持自动重连
-func (c *WsNetClient) StartWithReconnect() {
+func (c *NetWsClient) StartWithReconnect() {
 	for {
 		if err := c.Daily(); err != nil {
 			c.log.Errorf("连接失败: %v", err)
@@ -110,7 +110,7 @@ func (c *WsNetClient) StartWithReconnect() {
 }
 
 // Daily 建立连接(拨号)
-func (c *WsNetClient) Daily() error {
+func (c *NetWsClient) Daily() error {
 	dialer := &websocket.Dialer{
 		ReadBufferSize:   4096,
 		WriteBufferSize:  4096,
@@ -130,7 +130,7 @@ func (c *WsNetClient) Daily() error {
 }
 
 // Close 关闭客户端连接
-func (c *WsNetClient) Close() error {
+func (c *NetWsClient) Close() error {
 	if c.isStop {
 		return nil
 	}
@@ -146,33 +146,33 @@ func (c *WsNetClient) Close() error {
 }
 
 // IsConnected 检查是否已连接
-func (c *WsNetClient) IsConnected() bool {
+func (c *NetWsClient) IsConnected() bool {
 	return !c.isStop && c.conn != nil
 }
 
 // GetReconnectCount 获取重连次数
-func (c *WsNetClient) GetReconnectCount() int {
+func (c *NetWsClient) GetReconnectCount() int {
 	return c.reconnectCount
 }
 
 // SendMsg 发送消息
-func (c *WsNetClient) SendMsg(bs []byte) {
+func (c *NetWsClient) SendMsg(bs []byte) {
 	c.conn.Write(bs)
 }
 
 // onCloseFunc 关闭连接处理函数
-func (c *WsNetClient) onCloseFunc(cn *websocket.Conn) error {
+func (c *NetWsClient) onCloseFunc(cn *websocket.Conn) error {
 	return cn.Close()
 }
 
 // onWriteFunc 写数据处理函数
-func (c *WsNetClient) onWriteFunc(cn *websocket.Conn, data []byte) error {
+func (c *NetWsClient) onWriteFunc(cn *websocket.Conn, data []byte) error {
 	assert.ShouldCall1E(cn.SetWriteDeadline, time.Now().Add(c.cnf.GetWriteTimeout()), "SetWriteDeadline err:")
 	return cn.WriteMessage(websocket.BinaryMessage, data)
 }
 
 // onReadFunc 读取数据处理函数
-func (c *WsNetClient) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
+func (c *NetWsClient) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
 	assert.ShouldCall1E(cn.SetReadDeadline, time.Now().Add(c.cnf.GetReadTimeout()), "SetReadDeadline err:")
 	return cn.ReadMessage()
 }

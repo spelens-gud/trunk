@@ -45,7 +45,7 @@ func TestIntegration_ServerClientCommunication(t *testing.T) {
 		MaxConnections: 10,
 	}
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: serverConfig,
 		log: log,
 	}
@@ -83,7 +83,7 @@ func TestIntegration_ServerClientCommunication(t *testing.T) {
 		ReconnectEnabled: false,
 	}
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		cnf: clientConfig,
 		log: log,
 	}
@@ -163,7 +163,7 @@ func TestIntegration_MultipleClients(t *testing.T) {
 		MaxConnections: 10,
 	}
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: serverConfig,
 		log: log,
 	}
@@ -174,7 +174,7 @@ func TestIntegration_MultipleClients(t *testing.T) {
 
 	// 创建多个客户端
 	clientCount := 5
-	clients := make([]*WsNetClient, clientCount)
+	clients := make([]*NetWsClient, clientCount)
 
 	for i := 0; i < clientCount; i++ {
 		clientConfig := &ClientConfig{
@@ -197,7 +197,7 @@ func TestIntegration_MultipleClients(t *testing.T) {
 			ReconnectEnabled: false,
 		}
 
-		client := &WsNetClient{
+		client := &NetWsClient{
 			cnf: clientConfig,
 			log: log,
 		}
@@ -259,7 +259,7 @@ func TestIntegration_ConnectionLimit(t *testing.T) {
 		MaxConnections: maxConnections,
 	}
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: serverConfig,
 		log: log,
 	}
@@ -294,7 +294,7 @@ func TestIntegration_ConnectionLimit(t *testing.T) {
 			ReconnectEnabled: false,
 		}
 
-		client := &WsNetClient{
+		client := &NetWsClient{
 			cnf: clientConfig,
 			log: log,
 		}
@@ -354,7 +354,7 @@ func TestIntegration_BroadcastMessage(t *testing.T) {
 		MaxConnections: 10,
 	}
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: serverConfig,
 		log: log,
 	}
@@ -394,7 +394,7 @@ func TestIntegration_BroadcastMessage(t *testing.T) {
 			ReconnectEnabled: false,
 		}
 
-		client := &WsNetClient{
+		client := &NetWsClient{
 			cnf: clientConfig,
 			log: log,
 		}

@@ -103,7 +103,7 @@ func TestWsNetServer_New(t *testing.T) {
 		Console: true,
 	})
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: createTestServerConfig(18080),
 		log: log,
 	}
@@ -134,7 +134,7 @@ func TestWsNetServer_Stats(t *testing.T) {
 		Console: true,
 	})
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf:           createTestServerConfig(18081),
 		log:           log,
 		connCount:     5,
@@ -171,7 +171,7 @@ func TestWsNetServer_ConnectionLimit(t *testing.T) {
 	config := createTestServerConfig(18082)
 	config.MaxConnections = 2
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf:       config,
 		log:       log,
 		connCount: 2,
@@ -248,7 +248,7 @@ func BenchmarkWsNetServer_GetStats(b *testing.B) {
 		Console: true,
 	})
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf:           createTestServerConfig(18084),
 		log:           log,
 		connCount:     10,
@@ -271,7 +271,7 @@ func BenchmarkWsNetServer_ConcurrentStats(b *testing.B) {
 		Console: true,
 	})
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf:           createTestServerConfig(18085),
 		log:           log,
 		connCount:     10,
@@ -300,7 +300,7 @@ func TestWsNetServer_ConcurrentAccess(t *testing.T) {
 		Console: true,
 	})
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: createTestServerConfig(18086),
 		log: log,
 	}
@@ -351,7 +351,7 @@ func TestWsNetServer_HandleFunc(t *testing.T) {
 		Console: true,
 	})
 
-	server := &WsNetServer{
+	server := &NetWsServer{
 		cnf: createTestServerConfig(18087),
 		log: log,
 	}

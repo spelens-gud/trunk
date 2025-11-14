@@ -15,7 +15,7 @@ import (
 	"github.com/spelens-gud/trunk/internal/net/conn"
 )
 
-type WsNetServer struct {
+type NetWsServer struct {
 	cnf           *ServerConfig                        // ws服务端配置
 	log           logger.ILogger                       // 日志
 	stopChan      chan chan struct{}                   // 停止信号
@@ -30,7 +30,7 @@ type WsNetServer struct {
 }
 
 // New 创建ws服务端
-func (s *WsNetServer) New() {
+func (s *NetWsServer) New() {
 	s.stopChan = make(chan chan struct{})
 	s.mux = http.NewServeMux()
 	s.nets = make(map[*conn.Conn[*websocket.Conn]]bool)
@@ -48,7 +48,7 @@ func (s *WsNetServer) New() {
 }
 
 // RunNet 启动ws服务端
-func (s *WsNetServer) RunNet(route string) {
+func (s *NetWsServer) RunNet(route string) {
 	upgrader := websocket.Upgrader{
 		HandshakeTimeout:  3 * time.Second,
 		ReadBufferSize:    s.cnf.GetReadBufferSize(),
@@ -151,12 +151,12 @@ func (s *WsNetServer) RunNet(route string) {
 }
 
 // HandleFunc 注册路由
-func (s *WsNetServer) HandleFunc(pattern string, handle func(w http.ResponseWriter, r *http.Request)) {
+func (s *NetWsServer) HandleFunc(pattern string, handle func(w http.ResponseWriter, r *http.Request)) {
 	s.mux.HandleFunc(pattern, handle)
 }
 
 // Stop 停止服务器
-func (s *WsNetServer) Stop() {
+func (s *NetWsServer) Stop() {
 	stopDone := make(chan struct{}, 1)
 	s.stopChan <- stopDone
 	<-stopDone
@@ -164,7 +164,7 @@ func (s *WsNetServer) Stop() {
 }
 
 // GetConnectionCount 获取当前连接数
-func (s *WsNetServer) GetConnectionCount() int {
+func (s *NetWsServer) GetConnectionCount() int {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -179,7 +179,7 @@ type ServerStats struct {
 }
 
 // GetStats 获取服务器统计信息
-func (s *WsNetServer) GetStats() ServerStats {
+func (s *NetWsServer) GetStats() ServerStats {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return ServerStats{
@@ -190,7 +190,7 @@ func (s *WsNetServer) GetStats() ServerStats {
 }
 
 // BroadcastMessage 广播消息给所有连接
-func (s *WsNetServer) BroadcastMessage(data []byte) {
+func (s *NetWsServer) BroadcastMessage(data []byte) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -200,7 +200,7 @@ func (s *WsNetServer) BroadcastMessage(data []byte) {
 }
 
 // BroadcastMessageExclude 广播消息给除指定连接外的所有连接
-func (s *WsNetServer) BroadcastMessageExclude(data []byte, excludeConn conn.IConn) {
+func (s *NetWsServer) BroadcastMessageExclude(data []byte, excludeConn conn.IConn) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -214,7 +214,7 @@ func (s *WsNetServer) BroadcastMessageExclude(data []byte, excludeConn conn.ICon
 }
 
 // checkConnectionsLimit 检查连接数限制
-func (s *WsNetServer) checkConnectionsLimit(w http.ResponseWriter, r *http.Request) bool {
+func (s *NetWsServer) checkConnectionsLimit(w http.ResponseWriter, r *http.Request) bool {
 	// 锁的颗粒度控制
 	if s.cnf.GetMaxConnections() <= 0 {
 		return false
@@ -237,7 +237,7 @@ func (s *WsNetServer) checkConnectionsLimit(w http.ResponseWriter, r *http.Reque
 }
 
 // initPprof 初始化pprof
-func (s *WsNetServer) initPprof() {
+func (s *NetWsServer) initPprof() {
 	if s.mux != nil {
 		s.mux.HandleFunc("/debug/pprof/", pprof.Index)
 		s.mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -248,24 +248,24 @@ func (s *WsNetServer) initPprof() {
 }
 
 // onCloseFunc 关闭连接处理函数
-func (s *WsNetServer) onCloseFunc(cn *websocket.Conn) error {
+func (s *NetWsServer) onCloseFunc(cn *websocket.Conn) error {
 	return cn.Close()
 }
 
 // onWriteFunc 写数据处理函数
-func (s *WsNetServer) onWriteFunc(cn *websocket.Conn, data []byte) error {
+func (s *NetWsServer) onWriteFunc(cn *websocket.Conn, data []byte) error {
 	assert.ShouldCall1E(cn.SetWriteDeadline, time.Now().Add(s.cnf.GetWriteTimeout()), "SetWriteDeadline err:")
 	return cn.WriteMessage(websocket.BinaryMessage, data)
 }
 
 // onReadFunc 读取数据处理函数
-func (s *WsNetServer) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
+func (s *NetWsServer) onReadFunc(cn *websocket.Conn) (int, []byte, error) {
 	assert.ShouldCall1E(cn.SetReadDeadline, time.Now().Add(s.cnf.GetReadTimeout()), "SetReadDeadline err:")
 	return cn.ReadMessage()
 }
 
 // closeAllConnections 关闭所有连接
-func (s *WsNetServer) closeAllConnections() {
+func (s *NetWsServer) closeAllConnections() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

@@ -21,19 +21,19 @@ func createTestClientConfig(host string) *ClientConfig {
 			},
 		},
 		PingTicker: 5 * time.Second,
-		PingFunc: func(client *WsNetClient) {
+		PingFunc: func(client *NetWsClient) {
 			// 心跳函数
 		},
-		FirstPingFunc: func(client *WsNetClient) {
+		FirstPingFunc: func(client *NetWsClient) {
 			// 首次心跳函数
 		},
 		ReconnectEnabled: true,
 		ReconnectDelay:   2 * time.Second,
 		MaxReconnect:     3,
-		OnReconnect: func(client *WsNetClient) {
+		OnReconnect: func(client *NetWsClient) {
 			// 重连成功回调
 		},
-		OnDisconnect: func(client *WsNetClient) {
+		OnDisconnect: func(client *NetWsClient) {
 			// 断开连接回调
 		},
 	}
@@ -46,7 +46,7 @@ func TestWsNetClient_New(t *testing.T) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log: log,
 		cnf: createTestClientConfig("ws://localhost:8080/ws"),
 	}
@@ -68,7 +68,7 @@ func TestWsNetClient_IsConnected(t *testing.T) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:    log,
 		cnf:    createTestClientConfig("ws://localhost:8080/ws"),
 		isStop: true,
@@ -99,7 +99,7 @@ func TestWsNetClient_GetReconnectCount(t *testing.T) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:            log,
 		cnf:            createTestClientConfig("ws://localhost:8080/ws"),
 		reconnectCount: 5,
@@ -118,7 +118,7 @@ func TestWsNetClient_Close(t *testing.T) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:    log,
 		cnf:    createTestClientConfig("ws://localhost:8080/ws"),
 		isStop: true,
@@ -167,7 +167,7 @@ func BenchmarkWsNetClient_IsConnected(b *testing.B) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:    log,
 		cnf:    createTestClientConfig("ws://localhost:8080/ws"),
 		isStop: false,
@@ -186,7 +186,7 @@ func BenchmarkWsNetClient_GetReconnectCount(b *testing.B) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:            log,
 		cnf:            createTestClientConfig("ws://localhost:8080/ws"),
 		reconnectCount: 10,
@@ -205,7 +205,7 @@ func BenchmarkWsNetClient_ConcurrentStatusCheck(b *testing.B) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:            log,
 		cnf:            createTestClientConfig("ws://localhost:8080/ws"),
 		isStop:         false,
@@ -232,7 +232,7 @@ func TestWsNetClient_ConcurrentAccess(t *testing.T) {
 		Console: true,
 	})
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log:            log,
 		cnf:            createTestClientConfig("ws://localhost:8080/ws"),
 		isStop:         false,
@@ -291,14 +291,14 @@ func TestWsNetClient_ReconnectLogic(t *testing.T) {
 	config := createTestClientConfig("ws://localhost:9999/ws")
 	config.MaxReconnect = 2
 	config.ReconnectDelay = 100 * time.Millisecond
-	config.OnReconnect = func(client *WsNetClient) {
+	config.OnReconnect = func(client *NetWsClient) {
 		reconnectCalled++
 	}
-	config.OnDisconnect = func(client *WsNetClient) {
+	config.OnDisconnect = func(client *NetWsClient) {
 		disconnectCalled++
 	}
 
-	client := &WsNetClient{
+	client := &NetWsClient{
 		log: log,
 		cnf: config,
 	}
