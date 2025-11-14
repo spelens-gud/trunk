@@ -10,24 +10,12 @@ import (
 	"github.com/spelens-gud/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
 
-// ClientConfig gRPC客户端配置
-type ClientConfig struct {
-	Name             string
-	Host             string
-	KeepAliveTime    time.Duration
-	KeepAliveTimeout time.Duration
-	ReconnectEnabled bool
-	ReconnectDelay   time.Duration
-	MaxReconnect     int
-	OnReconnect      func(client *GrpcNetClient)
-	OnDisconnect     func(client *GrpcNetClient)
-}
-
-// GrpcNetClient gRPC客户端
-type GrpcNetClient struct {
+// NetGrpcClient gRPC客户端
+type NetGrpcClient struct {
 	cnf            *ClientConfig
 	log            logger.ILogger
 	conn           *grpc.ClientConn
@@ -38,20 +26,20 @@ type GrpcNetClient struct {
 }
 
 // New 初始化客户端
-func (c *GrpcNetClient) New() {
+func (c *NetGrpcClient) New() {
 	c.stopChan = make(chan struct{})
 	c.isStop = true
 }
 
 // Start 启动客户端
-func (c *GrpcNetClient) Start() error {
+func (c *NetGrpcClient) Start() error {
 	return c.connect()
 }
 
 // connect 建立连接
-func (c *GrpcNetClient) connect() error {
+func (c *NetGrpcClient) connect() error {
 	opts := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                c.cnf.KeepAliveTime,
 			Timeout:             c.cnf.KeepAliveTimeout,
@@ -77,7 +65,7 @@ func (c *GrpcNetClient) connect() error {
 }
 
 // watchConnection 监控连接状态
-func (c *GrpcNetClient) watchConnection() {
+func (c *NetGrpcClient) watchConnection() {
 	for {
 		if c.isStop {
 			return
@@ -104,7 +92,7 @@ func (c *GrpcNetClient) watchConnection() {
 }
 
 // handleDisconnect 处理断开连接
-func (c *GrpcNetClient) handleDisconnect() {
+func (c *NetGrpcClient) handleDisconnect() {
 	c.mu.Lock()
 	c.isStop = true
 	c.mu.Unlock()
@@ -119,7 +107,7 @@ func (c *GrpcNetClient) handleDisconnect() {
 }
 
 // reconnect 重连
-func (c *GrpcNetClient) reconnect() {
+func (c *NetGrpcClient) reconnect() {
 	count := atomic.LoadInt32(&c.reconnectCount)
 
 	if c.cnf.MaxReconnect > 0 && int(count) >= c.cnf.MaxReconnect {
@@ -143,7 +131,7 @@ func (c *GrpcNetClient) reconnect() {
 }
 
 // Close 关闭客户端
-func (c *GrpcNetClient) Close() error {
+func (c *NetGrpcClient) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -163,7 +151,7 @@ func (c *GrpcNetClient) Close() error {
 }
 
 // IsConnected 检查连接状态
-func (c *GrpcNetClient) IsConnected() bool {
+func (c *NetGrpcClient) IsConnected() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -176,19 +164,19 @@ func (c *GrpcNetClient) IsConnected() bool {
 }
 
 // GetReconnectCount 获取重连次数
-func (c *GrpcNetClient) GetReconnectCount() int32 {
+func (c *NetGrpcClient) GetReconnectCount() int32 {
 	return atomic.LoadInt32(&c.reconnectCount)
 }
 
 // GetConn 获取原生gRPC连接
-func (c *GrpcNetClient) GetConn() *grpc.ClientConn {
+func (c *NetGrpcClient) GetConn() *grpc.ClientConn {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.conn
 }
 
 // Invoke 调用RPC方法
-func (c *GrpcNetClient) Invoke(ctx context.Context, method string, args interface{}, reply interface{}, opts ...grpc.CallOption) error {
+func (c *NetGrpcClient) Invoke(ctx context.Context, method string, args interface{}, reply interface{}, opts ...grpc.CallOption) error {
 	c.mu.RLock()
 	conn := c.conn
 	c.mu.RUnlock()
